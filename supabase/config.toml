@@ -1,0 +1,8 @@
+# Supabase Edge Functions Configuration
+
+[functions.wildberries-proxy]
+verify_jwt = false  # Отключаем проверку JWT для упрощения (можно включить для безопасности)
+
+[functions.create-yookassa-payment]
+verify_jwt = false  # Отключаем проверку JWT для упрощения (можно включить для безопасности)
+

@@ -1,0 +1,39 @@
+// БЭКАП: Старый вариант категорий с фотографиями
+// Если нужно вернуть, замените блок категорий в Index.tsx на этот код
+
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {categories.map((category) => (
+                      <Link key={category.id} to={`/category/${category.slug}`}>
+                        <Card className="group overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer h-full border hover:border-primary/50">
+                          <div className="aspect-square overflow-hidden bg-background">
+                            {category.image ? (
+                              <img
+                                src={category.image}
+                                alt={category.name}
+                                className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23ddd" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EНет фото%3C/text%3E%3C/svg%3E';
+                                }}
+                              />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center text-muted-foreground text-[10px]">
+                                Нет фото
+                              </div>
+                            )}
+                          </div>
+                          <CardContent className="p-1.5 text-center">
+                            <h3 className="font-semibold text-[11px] mb-0 group-hover:text-primary transition-colors leading-tight">
+                              {category.name}
+                            </h3>
+                            {category.description && (
+                              <p className="text-[9px] text-muted-foreground line-clamp-1 mt-0.5">{category.description}</p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    ))}
+                  </div>
+
+
+
+

@@ -1,0 +1,754 @@
+═══════════════════════════════════════════════════════════════════════════════
+  СИСТЕМА ОТЗЫВОВ - КОД ДЛЯ КОПИРОВАНИЯ В ДРУГОЙ ПРОЕКТ
+═══════════════════════════════════════════════════════════════════════════════
+
+Просто скопируйте нужные части кода ниже в ваш другой проект.
+
+═══════════════════════════════════════════════════════════════════════════════
+1. SQL СХЕМА (выполните в Supabase SQL Editor)
+═══════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id BIGSERIAL PRIMARY KEY,
+  product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  source VARCHAR(50) NOT NULL,
+  marketplace_type VARCHAR(50),
+  external_review_id VARCHAR(255),
+  author_name VARCHAR(255) NOT NULL,
+  author_email VARCHAR(255),
+  author_avatar_url TEXT,
+  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  title VARCHAR(500),
+  text TEXT NOT NULL,
+  pros TEXT,
+  cons TEXT,
+  photos TEXT[],
+  status VARCHAR(50) DEFAULT 'pending',
+  moderation_notes TEXT,
+  moderated_by UUID REFERENCES auth.users(id),
+  moderated_at TIMESTAMP WITH TIME ZONE,
+  verified_purchase BOOLEAN DEFAULT false,
+  helpful_count INTEGER DEFAULT 0,
+  reply_text TEXT,
+  reply_date TIMESTAMP WITH TIME ZONE,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  external_created_at TIMESTAMP WITH TIME ZONE,
+  UNIQUE(source, external_review_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(product_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_status ON reviews(status);
+CREATE INDEX IF NOT EXISTS idx_reviews_rating ON reviews(rating);
+
+CREATE OR REPLACE FUNCTION update_reviews_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_reviews_updated_at ON reviews;
+CREATE TRIGGER update_reviews_updated_at
+  BEFORE UPDATE ON reviews
+  FOR EACH ROW
+  EXECUTE FUNCTION update_reviews_updated_at_column();
+
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view approved reviews" ON reviews;
+CREATE POLICY "Anyone can view approved reviews" ON reviews
+  FOR SELECT
+  USING (status = 'approved');
+
+DROP POLICY IF EXISTS "Users can create website reviews" ON reviews;
+CREATE POLICY "Users can create website reviews" ON reviews
+  FOR INSERT
+  WITH CHECK (
+    source = 'website' AND 
+    (auth.uid() IS NOT NULL)
+  );
+
+CREATE OR REPLACE FUNCTION calculate_product_rating(product_id_param BIGINT)
+RETURNS TABLE (
+  average_rating DECIMAL(3, 2),
+  total_reviews INTEGER,
+  rating_distribution JSONB
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    COALESCE(AVG(rating)::DECIMAL(3, 2), 0) as average_rating,
+    COUNT(*)::INTEGER as total_reviews,
+    jsonb_build_object(
+      '5', COUNT(*) FILTER (WHERE rating = 5),
+      '4', COUNT(*) FILTER (WHERE rating = 4),
+      '3', COUNT(*) FILTER (WHERE rating = 3),
+      '2', COUNT(*) FILTER (WHERE rating = 2),
+      '1', COUNT(*) FILTER (WHERE rating = 1)
+    ) as rating_distribution
+  FROM reviews
+  WHERE product_id = product_id_param AND status = 'approved';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION increment_helpful_count(review_id BIGINT)
+RETURNS void AS $$
+BEGIN
+  UPDATE reviews
+  SET helpful_count = COALESCE(helpful_count, 0) + 1
+  WHERE id = review_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+═══════════════════════════════════════════════════════════════════════════════
+2. ТИПЫ (создайте файл types/review.ts)
+═══════════════════════════════════════════════════════════════════════════════
+
+export interface Review {
+  id: number;
+  productId: number;
+  source: 'website' | 'wildberries' | 'ozon';
+  marketplaceType?: 'wildberries' | 'ozon';
+  externalReviewId?: string;
+  authorName: string;
+  authorEmail?: string;
+  authorAvatarUrl?: string;
+  rating: number;
+  title?: string;
+  text: string;
+  pros?: string;
+  cons?: string;
+  photos?: string[];
+  status: 'pending' | 'approved' | 'rejected' | 'hidden';
+  moderationNotes?: string;
+  moderatedBy?: string;
+  moderatedAt?: string;
+  verifiedPurchase: boolean;
+  helpfulCount: number;
+  replyText?: string;
+  replyDate?: string;
+  metadata?: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+  externalCreatedAt?: string;
+}
+
+export interface ReviewFormData {
+  productId: number;
+  rating: number;
+  title?: string;
+  text: string;
+  pros?: string;
+  cons?: string;
+  photos?: string[];
+}
+
+export interface ReviewStats {
+  averageRating: number;
+  totalReviews: number;
+  ratingDistribution: {
+    '5': number;
+    '4': number;
+    '3': number;
+    '2': number;
+    '1': number;
+  };
+}
+
+═══════════════════════════════════════════════════════════════════════════════
+3. СЕРВИС (создайте файл services/reviewsService.ts)
+═══════════════════════════════════════════════════════════════════════════════
+
+import { supabase } from '@/lib/supabase'; // или ваш путь к supabase
+import { Review, ReviewFormData, ReviewStats } from '@/types/review';
+
+function transformReviewFromSupabase(data: any): Review {
+  return {
+    id: data.id,
+    productId: data.product_id,
+    source: data.source,
+    marketplaceType: data.marketplace_type,
+    externalReviewId: data.external_review_id,
+    authorName: data.author_name,
+    authorEmail: data.author_email,
+    authorAvatarUrl: data.author_avatar_url,
+    rating: data.rating,
+    title: data.title,
+    text: data.text,
+    pros: data.pros,
+    cons: data.cons,
+    photos: data.photos || [],
+    status: data.status || 'pending',
+    moderationNotes: data.moderation_notes,
+    moderatedBy: data.moderated_by,
+    moderatedAt: data.moderated_at,
+    verifiedPurchase: data.verified_purchase || false,
+    helpfulCount: data.helpful_count || 0,
+    replyText: data.reply_text,
+    replyDate: data.reply_date,
+    metadata: data.metadata || {},
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+    externalCreatedAt: data.external_created_at,
+  };
+}
+
+function transformReviewToSupabase(data: Partial<ReviewFormData> | Partial<Review>): any {
+  const result: any = {};
+  if ('productId' in data) result.product_id = data.productId;
+  if ('source' in data) result.source = data.source;
+  if ('marketplaceType' in data) result.marketplace_type = data.marketplaceType;
+  if ('externalReviewId' in data) result.external_review_id = data.externalReviewId;
+  if ('authorName' in data) result.author_name = data.authorName;
+  if ('authorEmail' in data) result.author_email = data.authorEmail;
+  if ('authorAvatarUrl' in data) result.author_avatar_url = data.authorAvatarUrl;
+  if ('rating' in data) result.rating = data.rating;
+  if ('title' in data) result.title = data.title;
+  if ('text' in data) result.text = data.text;
+  if ('pros' in data) result.pros = data.pros;
+  if ('cons' in data) result.cons = data.cons;
+  if ('photos' in data) result.photos = data.photos || [];
+  if ('status' in data) result.status = data.status;
+  if ('verifiedPurchase' in data) result.verified_purchase = data.verifiedPurchase;
+  if ('helpfulCount' in data) result.helpful_count = data.helpfulCount;
+  if ('replyText' in data) result.reply_text = data.replyText;
+  if ('replyDate' in data) result.reply_date = data.replyDate;
+  if ('metadata' in data) result.metadata = data.metadata || {};
+  return result;
+}
+
+export const reviewsService = {
+  async getByProduct(productId: number, params?: {
+    status?: string;
+    limit?: number;
+    sortBy?: 'newest' | 'rating_high' | 'helpful';
+  }): Promise<Review[]> {
+    let query = supabase
+      .from('reviews')
+      .select('*')
+      .eq('product_id', productId);
+
+    if (params?.status) {
+      query = query.eq('status', params.status);
+    } else {
+      query = query.eq('status', 'approved');
+    }
+
+    if (params?.sortBy === 'newest') {
+      query = query.order('created_at', { ascending: false });
+    } else if (params?.sortBy === 'rating_high') {
+      query = query.order('rating', { ascending: false });
+    } else if (params?.sortBy === 'helpful') {
+      query = query.order('helpful_count', { ascending: false });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    if (params?.limit) {
+      query = query.limit(params.limit);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(`Ошибка получения отзывов: ${error.message}`);
+    return (data || []).map(transformReviewFromSupabase);
+  },
+
+  async getStats(productId: number): Promise<ReviewStats> {
+    try {
+      const { data, error } = await supabase.rpc('calculate_product_rating', {
+        product_id_param: productId,
+      });
+
+      if (error) {
+        return await this.calculateStatsManually(productId);
+      }
+
+      if (data && data.length > 0) {
+        const stats = data[0];
+        return {
+          averageRating: parseFloat(stats.average_rating || 0),
+          totalReviews: stats.total_reviews || 0,
+          ratingDistribution: stats.rating_distribution || { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 },
+        };
+      }
+
+      return { averageRating: 0, totalReviews: 0, ratingDistribution: { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 } };
+    } catch (error) {
+      return await this.calculateStatsManually(productId);
+    }
+  },
+
+  async calculateStatsManually(productId: number): Promise<ReviewStats> {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('rating')
+      .eq('product_id', productId)
+      .eq('status', 'approved');
+
+    if (error) {
+      return { averageRating: 0, totalReviews: 0, ratingDistribution: { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 } };
+    }
+
+    const reviews = data || [];
+    const totalReviews = reviews.length;
+    if (totalReviews === 0) {
+      return { averageRating: 0, totalReviews: 0, ratingDistribution: { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 } };
+    }
+
+    const sum = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+    const averageRating = sum / totalReviews;
+
+    return {
+      averageRating: parseFloat(averageRating.toFixed(2)),
+      totalReviews,
+      ratingDistribution: {
+        '5': reviews.filter(r => r.rating === 5).length,
+        '4': reviews.filter(r => r.rating === 4).length,
+        '3': reviews.filter(r => r.rating === 3).length,
+        '2': reviews.filter(r => r.rating === 2).length,
+        '1': reviews.filter(r => r.rating === 1).length,
+      },
+    };
+  },
+
+  async create(reviewData: ReviewFormData, userEmail: string, userName: string): Promise<Review> {
+    const supabaseData = transformReviewToSupabase({
+      ...reviewData,
+      source: 'website',
+      authorName: userName,
+      authorEmail: userEmail,
+      status: 'pending',
+    });
+
+    const { data, error } = await supabase
+      .from('reviews')
+      .insert(supabaseData)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Ошибка создания отзыва: ${error.message}`);
+    return transformReviewFromSupabase(data);
+  },
+
+  async markHelpful(id: number): Promise<void> {
+    const { error } = await supabase.rpc('increment_helpful_count', { review_id: id });
+    if (error) {
+      const { data: review } = await supabase
+        .from('reviews')
+        .select('helpful_count')
+        .eq('id', id)
+        .single();
+      if (review) {
+        await supabase
+          .from('reviews')
+          .update({ helpful_count: (review.helpful_count || 0) + 1 })
+          .eq('id', id);
+      }
+    }
+  },
+};
+
+═══════════════════════════════════════════════════════════════════════════════
+4. КОМПОНЕНТ ОТЗЫВОВ (создайте файл components/Reviews.tsx)
+═══════════════════════════════════════════════════════════════════════════════
+
+import { useState, useEffect } from 'react';
+import { Review, ReviewStats } from '@/types/review';
+import { reviewsService } from '@/services/reviewsService';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Star, ThumbsUp, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale/ru';
+import { cn } from '@/lib/utils';
+
+interface ReviewsProps {
+  productId: number;
+  className?: string;
+}
+
+export function Reviews({ productId, className }: ReviewsProps) {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [stats, setStats] = useState<ReviewStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<'newest' | 'rating_high' | 'helpful'>('newest');
+  const [showAll, setShowAll] = useState(false);
+  const [expandedReviews, setExpandedReviews] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    loadReviews();
+    loadStats();
+  }, [productId, sortBy]);
+
+  const loadReviews = async () => {
+    try {
+      setLoading(true);
+      const data = await reviewsService.getByProduct(productId, {
+        status: 'approved',
+        sortBy,
+        limit: showAll ? 100 : 5,
+      });
+      setReviews(data);
+    } catch (error) {
+      console.error('Ошибка загрузки отзывов:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const data = await reviewsService.getStats(productId);
+      setStats(data);
+    } catch (error) {
+      console.error('Ошибка загрузки статистики отзывов:', error);
+    }
+  };
+
+  const toggleExpand = (reviewId: number) => {
+    const newExpanded = new Set(expandedReviews);
+    if (newExpanded.has(reviewId)) {
+      newExpanded.delete(reviewId);
+    } else {
+      newExpanded.add(reviewId);
+    }
+    setExpandedReviews(newExpanded);
+  };
+
+  const handleMarkHelpful = async (reviewId: number) => {
+    try {
+      await reviewsService.markHelpful(reviewId);
+      setReviews(prev =>
+        prev.map(r => r.id === reviewId ? { ...r, helpfulCount: r.helpfulCount + 1 } : r)
+      );
+    } catch (error) {
+      console.error('Ошибка отметки "Полезно":', error);
+    }
+  };
+
+  if (loading && !stats) {
+    return <div className={cn("space-y-4", className)}><div className="h-32 bg-muted animate-pulse rounded-lg" /></div>;
+  }
+
+  if (!stats || stats.totalReviews === 0) {
+    return (
+      <Card className={className}>
+        <CardHeader><CardTitle>Отзывы</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-center py-8">Пока нет отзывов. Будьте первым, кто оставит отзыв!</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className={cn("space-y-6", className)}>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+            Отзывы и рейтинги
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex items-center gap-4">
+              <div className="text-4xl font-bold">{stats.averageRating.toFixed(1)}</div>
+              <div>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star key={star} className={cn("h-5 w-5", star <= Math.round(stats.averageRating) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground")} />
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {stats.totalReviews} {stats.totalReviews === 1 ? 'отзыв' : stats.totalReviews < 5 ? 'отзыва' : 'отзывов'}
+                </p>
+              </div>
+            </div>
+            <div className="flex-1 space-y-2">
+              {[5, 4, 3, 2, 1].map((rating) => {
+                const count = stats.ratingDistribution[rating as keyof typeof stats.ratingDistribution];
+                const percentage = stats.totalReviews > 0 ? (count / stats.totalReviews) * 100 : 0;
+                return (
+                  <div key={rating} className="flex items-center gap-2">
+                    <span className="text-sm w-8">{rating}</span>
+                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-yellow-400 rounded-full transition-all" style={{ width: `${percentage}%` }} />
+                    </div>
+                    <span className="text-sm text-muted-foreground w-12 text-right">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {reviews.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          <Button variant={sortBy === 'newest' ? 'default' : 'outline'} size="sm" onClick={() => setSortBy('newest')}>Новые</Button>
+          <Button variant={sortBy === 'rating_high' ? 'default' : 'outline'} size="sm" onClick={() => setSortBy('rating_high')}>Высокий рейтинг</Button>
+          <Button variant={sortBy === 'helpful' ? 'default' : 'outline'} size="sm" onClick={() => setSortBy('helpful')}>Полезные</Button>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (<div key={i} className="h-32 bg-muted animate-pulse rounded-lg" />))}
+          </div>
+        ) : reviews.length === 0 ? (
+          <Card><CardContent className="py-8"><p className="text-muted-foreground text-center">Нет отзывов для отображения</p></CardContent></Card>
+        ) : (
+          <>
+            {reviews.map((review) => {
+              const isExpanded = expandedReviews.has(review.id);
+              const isLongText = review.text.length > 300;
+              const getCardStyle = () => {
+                if (review.source === 'wildberries') return 'border-l-4 border-l-[#8B00FF] bg-purple-50/50 dark:bg-purple-950/20 shadow-sm';
+                if (review.source === 'ozon') return 'border-l-4 border-l-[#005BFF] bg-blue-50/50 dark:bg-blue-950/20 shadow-sm';
+                return 'border-l-4 border-l-primary bg-primary/5 shadow-sm';
+              };
+              return (
+                <Card key={review.id} className={getCardStyle()}>
+                  <CardContent className="pt-6">
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star key={star} className={cn("h-4 w-4", star <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground")} />
+                              ))}
+                            </div>
+                            {review.title && <span className="font-semibold">{review.title}</span>}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="font-medium">{review.authorName}</span>
+                            {review.verifiedPurchase && (
+                              <Badge variant="secondary" className="text-xs">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Подтвержденная покупка
+                              </Badge>
+                            )}
+                            {review.source !== 'website' && (
+                              <Badge variant="outline" className={cn("text-xs font-semibold", review.source === 'wildberries' ? 'border-[#8B00FF] text-[#8B00FF] bg-purple-50 dark:bg-purple-950/30' : 'border-[#005BFF] text-[#005BFF] bg-blue-50 dark:bg-blue-950/30')}>
+                                {review.source === 'wildberries' ? 'WB' : 'OZON'}
+                              </Badge>
+                            )}
+                            <span>{format(new Date(review.createdAt), 'dd MMMM yyyy', { locale: ru })}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        {isLongText && !isExpanded ? (
+                          <>
+                            <p className="text-sm whitespace-pre-line line-clamp-3">{review.text}</p>
+                            <Button variant="ghost" size="sm" onClick={() => toggleExpand(review.id)} className="h-auto p-0 text-primary">
+                              Читать полностью <ChevronDown className="h-4 w-4 ml-1" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm whitespace-pre-line">{review.text}</p>
+                            {isLongText && (
+                              <Button variant="ghost" size="sm" onClick={() => toggleExpand(review.id)} className="h-auto p-0 text-primary">
+                                Свернуть <ChevronUp className="h-4 w-4 ml-1" />
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {(review.pros || review.cons) && (
+                        <div className="grid md:grid-cols-2 gap-3">
+                          {review.pros && (
+                            <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-md">
+                              <p className="text-xs font-semibold text-green-700 dark:text-green-400 mb-1">Плюсы</p>
+                              <p className="text-sm text-green-900 dark:text-green-300">{review.pros}</p>
+                            </div>
+                          )}
+                          {review.cons && (
+                            <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-md">
+                              <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-1">Минусы</p>
+                              <p className="text-sm text-red-900 dark:text-red-300">{review.cons}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {review.photos && review.photos.length > 0 && (
+                        <div className="flex gap-2 flex-wrap">
+                          {review.photos.slice(0, 4).map((photo, idx) => (
+                            <div key={idx} className="relative w-20 h-20 rounded-md overflow-hidden border cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.open(photo, '_blank')}>
+                              <img src={photo} alt={`Фото отзыва ${idx + 1}`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <Button variant="ghost" size="sm" onClick={() => handleMarkHelpful(review.id)} className="h-auto p-0">
+                          <ThumbsUp className="h-4 w-4 mr-1" />
+                          Полезно ({review.helpfulCount})
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            {reviews.length >= 5 && (
+              <div className="text-center pt-4">
+                <Button variant="outline" onClick={() => { setShowAll(!showAll); loadReviews(); }}>
+                  {showAll ? 'Свернуть' : `Показать все отзывы (${stats.totalReviews})`}
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+═══════════════════════════════════════════════════════════════════════════════
+5. ФОРМА ОТЗЫВОВ (создайте файл components/ReviewForm.tsx)
+═══════════════════════════════════════════════════════════════════════════════
+
+import { useState, useEffect } from 'react';
+import { ReviewFormData } from '@/types/review';
+import { reviewsService } from '@/services/reviewsService';
+import { supabase } from '@/lib/supabase';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Star } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface ReviewFormProps {
+  productId: number;
+  onSuccess?: () => void;
+  onError?: (error: string) => void;
+  className?: string;
+}
+
+export function ReviewForm({ productId, onSuccess, onError, className }: ReviewFormProps) {
+  const [rating, setRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [title, setTitle] = useState('');
+  const [text, setText] = useState('');
+  const [pros, setPros] = useState('');
+  const [cons, setCons] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserName(user.email?.split('@')[0] || 'Пользователь');
+          setUserEmail(user.email || '');
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки пользователя:', error);
+      }
+    };
+    loadUser();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (rating === 0) { onError?.('Пожалуйста, выберите рейтинг'); return; }
+    if (!text.trim()) { onError?.('Пожалуйста, напишите отзыв'); return; }
+    if (!userName.trim() || !userEmail.trim()) { onError?.('Пожалуйста, укажите имя и email'); return; }
+
+    setSubmitting(true);
+    try {
+      const reviewData: ReviewFormData = {
+        productId,
+        rating,
+        title: title.trim() || undefined,
+        text: text.trim(),
+        pros: pros.trim() || undefined,
+        cons: cons.trim() || undefined,
+        photos: [],
+      };
+      await reviewsService.create(reviewData, userEmail, userName);
+      setRating(0); setTitle(''); setText(''); setPros(''); setCons('');
+      onSuccess?.();
+    } catch (error: any) {
+      onError?.(error.message || 'Ошибка отправки отзыва');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Card className={className}>
+      <CardHeader><CardTitle>Оставить отзыв</CardTitle></CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Оценка *</Label>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button key={star} type="button" onClick={() => setRating(star)} onMouseEnter={() => setHoveredRating(star)} onMouseLeave={() => setHoveredRating(0)} className="focus:outline-none">
+                  <Star className={cn("h-8 w-8 transition-colors", star <= (hoveredRating || rating) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground")} />
+                </button>
+              ))}
+            </div>
+          </div>
+          {!userName && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="userName">Ваше имя *</Label>
+                <Input id="userName" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="Иван Иванов" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="userEmail">Email *</Label>
+                <Input id="userEmail" type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} placeholder="ivan@example.com" required />
+              </div>
+            </>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="title">Заголовок отзыва (необязательно)</Label>
+            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Краткое описание вашего опыта" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="text">Ваш отзыв *</Label>
+            <Textarea id="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Расскажите о вашем опыте использования товара..." rows={5} required />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pros">Плюсы (необязательно)</Label>
+            <Textarea id="pros" value={pros} onChange={(e) => setPros(e.target.value)} placeholder="Что вам понравилось..." rows={2} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cons">Минусы (необязательно)</Label>
+            <Textarea id="cons" value={cons} onChange={(e) => setCons(e.target.value)} placeholder="Что можно улучшить..." rows={2} />
+          </div>
+          <Button type="submit" disabled={submitting} className="w-full">{submitting ? 'Отправка...' : 'Отправить отзыв'}</Button>
+          <p className="text-xs text-muted-foreground text-center">Ваш отзыв будет отправлен на модерацию и появится на сайте после проверки.</p>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+═══════════════════════════════════════════════════════════════════════════════
+ИСПОЛЬЗОВАНИЕ:
+═══════════════════════════════════════════════════════════════════════════════
+
+import { Reviews, ReviewForm } from '@/components/Reviews'; // или ваши пути
+
+<ReviewForm productId={123} onSuccess={() => alert('Отзыв отправлен!')} />
+<Reviews productId={123} />
+
+═══════════════════════════════════════════════════════════════════════════════
+
