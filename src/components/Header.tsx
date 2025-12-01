@@ -23,6 +23,7 @@ import { transformCategoryFromSupabase } from '@/types/categorySupabase';
 import { Category } from '@/types/categorySupabase';
 import { useWishlist } from '@/hooks/useWishlist';
 import MarketplaceStats from '@/components/MarketplaceStats';
+import { useTheme } from '@/hooks/useTheme';
 
 export const Header = () => {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ export const Header = () => {
   
   const cartItemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const { wishlistCount } = useWishlist();
+  const { activeTheme } = useTheme();
 
   // Загружаем категории для выпадающего меню
   useEffect(() => {
@@ -84,12 +86,29 @@ export const Header = () => {
 
   return (
     <>
-    <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
+    <header className={`sticky top-0 z-50 w-full border-b bg-card shadow-sm relative overflow-hidden ${
+      activeTheme === 'newyear' ? 'new-year-shadow' : 
+      activeTheme === 'spring' ? 'spring-shadow' : 
+      ''
+    }`}>
+      {/* Праздничный акцент на header */}
+      {activeTheme === 'newyear' && (
+        <div className="absolute top-0 left-0 right-0 h-1 new-year-garland opacity-60" />
+      )}
+      {activeTheme === 'spring' && (
+        <div className="absolute top-0 left-0 right-0 h-1 spring-garland opacity-60" />
+      )}
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              МОДАНАГОЛОВУ
+            <h1 className={`text-2xl font-bold ${
+              activeTheme === 'newyear' ? 'new-year-gradient' : 
+              activeTheme === 'spring' ? 'spring-gradient' : 
+              'bg-gradient-primary bg-clip-text text-transparent'
+            }`}>
+              {activeTheme === 'newyear' && '🎄 МОДАНАГОЛОВУ ✨'}
+              {activeTheme === 'spring' && '🌸 МОДАНАГОЛОВУ 🌸'}
+              {activeTheme === 'none' && 'МОДАНАГОЛОВУ'}
             </h1>
           </Link>
 

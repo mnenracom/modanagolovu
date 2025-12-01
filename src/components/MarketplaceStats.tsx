@@ -26,7 +26,7 @@ const MarketplaceStats = ({ data = defaultStats }: MarketplaceStatsProps) => {
   const stats = data || defaultStats;
 
   return (
-    <section className="border-b bg-background/50 backdrop-blur-sm">
+    <section className="border-b bg-background/50 backdrop-blur-sm relative z-[60]">
       <div className="container mx-auto px-4 py-3">
         <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 text-sm">
           {/* Рейтинг */}
@@ -70,14 +70,14 @@ const MarketplaceStats = ({ data = defaultStats }: MarketplaceStatsProps) => {
           <div className="hidden lg:block w-px h-6 bg-border" />
 
           {/* Кнопки маркетплейсов */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 relative z-[61]">
             <a 
               href="https://www.wildberries.ru/seller/285549" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-block"
+              className="inline-block relative z-[62]"
             >
-              <Button size="sm" variant="secondary" className="h-7 text-xs px-3">
+              <Button size="sm" variant="secondary" className="h-7 text-xs px-3 relative z-[63] bg-background/95 hover:bg-background border shadow-sm">
                 Wildberries 1
               </Button>
             </a>
@@ -85,9 +85,9 @@ const MarketplaceStats = ({ data = defaultStats }: MarketplaceStatsProps) => {
               href="https://www.wildberries.ru/seller/250051301" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-block"
+              className="inline-block relative z-[62]"
             >
-              <Button size="sm" variant="secondary" className="h-7 text-xs px-3">
+              <Button size="sm" variant="secondary" className="h-7 text-xs px-3 relative z-[63] bg-background/95 hover:bg-background border shadow-sm">
                 Wildberries 2
               </Button>
             </a>
@@ -95,9 +95,9 @@ const MarketplaceStats = ({ data = defaultStats }: MarketplaceStatsProps) => {
               href="https://www.ozon.ru/seller/modanagolovu-2581934/?miniapp=seller_2581934" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-block"
+              className="inline-block relative z-[62]"
             >
-              <Button size="sm" variant="secondary" className="h-7 text-xs px-3">
+              <Button size="sm" variant="secondary" className="h-7 text-xs px-3 relative z-[63] bg-background/95 hover:bg-background border shadow-sm">
                 OZON 1
               </Button>
             </a>
@@ -105,9 +105,9 @@ const MarketplaceStats = ({ data = defaultStats }: MarketplaceStatsProps) => {
               href="https://www.ozon.ru/seller/pugovka-1039508/?miniapp=seller_1039508" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-block"
+              className="inline-block relative z-[62]"
             >
-              <Button size="sm" variant="secondary" className="h-7 text-xs px-3">
+              <Button size="sm" variant="secondary" className="h-7 text-xs px-3 relative z-[63] bg-background/95 hover:bg-background border shadow-sm">
                 OZON 2
               </Button>
             </a>

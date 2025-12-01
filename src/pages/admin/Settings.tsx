@@ -8,15 +8,18 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Settings as SettingsIcon, Database, Shield, Bell, Mail, Globe, ShoppingCart, Plus, Trash2, FileText } from 'lucide-react';
+import { Settings as SettingsIcon, Database, Shield, Bell, Mail, Globe, ShoppingCart, Plus, Trash2, FileText, Palette } from 'lucide-react';
 import { settingsService } from '@/services/settingsService';
 import { useSettings } from '@/hooks/useSettings';
 import { defaultContentSettings, ContentSettings } from '@/constants/contentDefaults';
+import { useTheme } from '@/hooks/useTheme';
+import { THEMES, ThemeId } from '@/types/themes';
 
 const Settings = () => {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const { settings, loading: settingsLoading, error: settingsError, refresh: refreshSettings } = useSettings();
+  const { activeTheme, changeTheme, loading: themeLoading } = useTheme();
 
   // Настройки сайта
   const [siteSettings, setSiteSettings] = useState({
@@ -318,6 +321,10 @@ const Settings = () => {
           <TabsTrigger value="content">
             <FileText className="h-4 w-4 mr-2" />
             Контент
+          </TabsTrigger>
+          <TabsTrigger value="themes">
+            <Palette className="h-4 w-4 mr-2" />
+            Темы оформления
           </TabsTrigger>
           <TabsTrigger value="database">
             <Database className="h-4 w-4 mr-2" />
@@ -702,6 +709,77 @@ const Settings = () => {
               </div>
             </>
           )}
+        </TabsContent>
+
+        {/* Управление темами оформления */}
+        <TabsContent value="themes" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Темы оформления сайта</CardTitle>
+              <CardDescription>
+                Выберите активную тему оформления. Темы добавляют праздничные декорации и эффекты на все страницы сайта.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {themeLoading ? (
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {THEMES.map((theme) => (
+                    <div
+                      key={theme.id}
+                      className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                        activeTheme === theme.id
+                          ? 'border-primary bg-primary/5 shadow-md'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      onClick={async () => {
+                        const success = await changeTheme(theme.id);
+                        if (success) {
+                          toast({
+                            title: 'Тема изменена',
+                            description: `Активна тема: ${theme.name}`,
+                          });
+                        } else {
+                          toast({
+                            title: 'Ошибка',
+                            description: 'Не удалось изменить тему',
+                            variant: 'destructive',
+                          });
+                        }
+                      }}
+                    >
+                      {activeTheme === theme.id && (
+                        <div className="absolute top-2 right-2">
+                          <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                            <span className="text-white text-xs">✓</span>
+                          </div>
+                        </div>
+                      )}
+                      <div className="text-4xl mb-3 text-center">{theme.icon}</div>
+                      <h3 className="font-semibold text-lg mb-1">{theme.name}</h3>
+                      <p className="text-sm text-muted-foreground">{theme.description}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <Separator />
+              
+              <div className="bg-muted p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Текущая активная тема:</h4>
+                <p className="text-sm text-muted-foreground">
+                  {THEMES.find(t => t.id === activeTheme)?.name || 'Обычная тема'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Изменения применяются сразу на всех страницах сайта (кроме админ-панели).
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Настройки заказов */}

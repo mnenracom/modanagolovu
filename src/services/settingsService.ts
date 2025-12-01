@@ -40,6 +40,7 @@ export const getAllSettings = async (): Promise<SettingsMap> => {
           resolve({
             'min_retail_order': '0',
             'min_wholesale_order': '5000',
+            'active_theme': 'none',
             ...defaultContentSettings,
           });
           return;
@@ -60,9 +61,15 @@ export const getAllSettings = async (): Promise<SettingsMap> => {
           resolve({
             'min_retail_order': '0',
             'min_wholesale_order': '5000',
+            'active_theme': 'none',
             ...defaultContentSettings,
           });
           return;
+        }
+        
+        // Убеждаемся, что active_theme есть в настройках
+        if (!settingsMap['active_theme']) {
+          settingsMap['active_theme'] = 'none';
         }
 
         resolve(settingsMap);
@@ -73,6 +80,7 @@ export const getAllSettings = async (): Promise<SettingsMap> => {
         resolve({
           'min_retail_order': '0',
           'min_wholesale_order': '5000',
+          'active_theme': 'none',
           ...defaultContentSettings,
         });
       });
@@ -216,6 +224,25 @@ export const getOrderMinimums = async (): Promise<{ minRetailOrder: number; minW
 };
 
 /**
+ * Получить активную тему сайта
+ */
+export const getActiveTheme = async (): Promise<string> => {
+  const theme = await getSetting('active_theme');
+  return theme || 'none';
+};
+
+/**
+ * Установить активную тему сайта
+ */
+export const setActiveTheme = async (themeId: string): Promise<void> => {
+  await updateSetting(
+    'active_theme',
+    themeId,
+    'Активная тема оформления сайта (none, newyear, spring)'
+  );
+};
+
+/**
  * Сервис для работы с настройками
  */
 export const settingsService = {
@@ -225,5 +252,7 @@ export const settingsService = {
   updateSetting,
   updateSettings,
   getOrderMinimums,
+  getActiveTheme,
+  setActiveTheme,
 };
 

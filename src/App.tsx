@@ -55,6 +55,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import { ErrorBoundary } from "./components/admin/ErrorBoundary";
 import { Analytics } from "./components/Analytics";
+import { ThemeDecorations } from "./components/ThemeDecorations";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <ThemeDecorations />
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Index />} />

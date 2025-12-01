@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Heart } from 'lucide-react';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useState, useEffect } from 'react';
+import { useTheme } from '@/hooks/useTheme';
 
 interface ProductCardProps {
   product: Product;
@@ -15,6 +16,7 @@ interface ProductCardProps {
 export const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
   const navigate = useNavigate();
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const { activeTheme } = useTheme();
   const [isFavorite, setIsFavorite] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   
@@ -52,9 +54,15 @@ export const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
     setIsToggling(false);
   };
 
+  const getCardBorderClass = () => {
+    if (activeTheme === 'newyear') return 'new-year-card-border';
+    if (activeTheme === 'spring') return 'spring-card-border';
+    return '';
+  };
+
   return (
     <Card 
-      className="group overflow-hidden hover:shadow-elegant transition-smooth h-full flex flex-col cursor-pointer"
+      className={`group overflow-hidden hover:shadow-elegant transition-smooth h-full flex flex-col cursor-pointer ${getCardBorderClass()}`}
       onClick={handleCardClick}
     >
       <div className="aspect-square overflow-hidden bg-muted relative">
