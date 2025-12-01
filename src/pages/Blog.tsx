@@ -75,9 +75,9 @@ const Blog = () => {
         description="Читайте последние новости и статьи о платках, косынках, банданах и капорах. Полезные советы и тренды в мире аксессуаров."
         keywords="новости, статьи, платки, косынки, банданы, капоры, мода, аксессуары"
       />
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col w-full overflow-x-hidden">
         <Header />
-        <main className="flex-1">
+        <main className="flex-1 w-full overflow-x-hidden">
           {/* Hero секция */}
           <section className="bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 py-12">
             <div className="container mx-auto px-4">

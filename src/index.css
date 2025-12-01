@@ -86,8 +86,21 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    scrollbar-gutter: stable;
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
+  }
+
+  #root {
+    width: 100%;
+    overflow-x: hidden;
   }
 }
 
@@ -679,4 +692,21 @@ All colors MUST be HSL.
   mask-composite: exclude;
   animation: gradient-shift 4s ease infinite;
   z-index: -1;
+}
+
+/* Предотвращение мигания иконок при переключении страниц */
+svg[class*="lucide"] {
+  will-change: auto;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Оптимизация для кнопок с иконками */
+button svg[class*="lucide"],
+a svg[class*="lucide"] {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
 }

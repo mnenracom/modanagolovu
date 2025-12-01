@@ -100,7 +100,7 @@ export const NewYearDecorations = () => {
   return (
     <>
       {/* Снежинки и звёзды */}
-      <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none z-[68] overflow-hidden">
         {snowflakes.map((flake) => (
           <div
             key={flake.id}
@@ -120,7 +120,7 @@ export const NewYearDecorations = () => {
       </div>
 
       {/* Конфетти (уменьшенная активность) */}
-      <div className="fixed inset-0 pointer-events-none z-45 overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none z-[67] overflow-hidden">
         {confetti.map((item) => (
           <div
             key={item.id}
@@ -143,7 +143,7 @@ export const NewYearDecorations = () => {
       </div>
 
       {/* Блестящие звёздочки (уменьшенное количество, меньше на мобильных) */}
-      <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden hidden sm:block">
+      <div className="fixed inset-0 pointer-events-none z-[66] overflow-hidden hidden sm:block">
         {[...Array(10)].map((_, i) => (
           <div
             key={i}
@@ -161,7 +161,7 @@ export const NewYearDecorations = () => {
       </div>
 
       {/* Дополнительные блестящие частицы (меньше на мобильных) */}
-      <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none z-[66] overflow-hidden">
         {[...Array(isMobile ? 10 : 25)].map((_, i) => (
           <div
             key={`sparkle-${i}`}

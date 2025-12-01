@@ -4,9 +4,13 @@ export const getCategoryName = (category: string): string => {
   
   const categoryNames: Record<string, string> = {
     scarves: 'Платки на голову',
+    platki: 'Платки на голову',
     kosinka: 'Косынки',
+    kosynki: 'Косынки',
     bandanas: 'Банданы',
     capor: 'Капор',
+    kapory: 'Капоры',
+    kolpaki: 'Колпаки',
     // Добавляем варианты с подчеркиваниями и дефисами
     'kosynki_na_rezinke': 'Косынки на резинке',
     'kosynki-na-rezinke': 'Косынки на резинке',

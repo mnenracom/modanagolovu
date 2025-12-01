@@ -699,6 +699,26 @@ const Settings = () => {
                       onChange={(e) => updateContentSetting('contacts_marketplaces', e.target.value)}
                     />
                   </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="contactsInn">ИНН</Label>
+                      <Input
+                        id="contactsInn"
+                        value={contentSettings.contacts_inn}
+                        onChange={(e) => updateContentSetting('contacts_inn', e.target.value)}
+                        placeholder="42020028583"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="contactsOgrnip">ОГРНИП</Label>
+                      <Input
+                        id="contactsOgrnip"
+                        value={contentSettings.contacts_ogrnip}
+                        onChange={(e) => updateContentSetting('contacts_ogrnip', e.target.value)}
+                        placeholder="304420213300029"
+                      />
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 

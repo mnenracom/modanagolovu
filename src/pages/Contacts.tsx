@@ -1,7 +1,7 @@
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Card, CardContent } from '@/components/ui/card';
-import { Mail, Phone, MapPin, Clock } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, FileText } from 'lucide-react';
 import { useSettings } from '@/hooks/useSettings';
 import { defaultContentSettings } from '@/constants/contentDefaults';
 
@@ -21,6 +21,8 @@ const Contacts = () => {
     .map((paragraph) => paragraph.trim())
     .filter(Boolean);
   const contactsCta = getSetting('contacts_cta', defaultContentSettings.contacts_cta);
+  const contactsInn = getSetting('contacts_inn', defaultContentSettings.contacts_inn);
+  const contactsOgrnip = getSetting('contacts_ogrnip', defaultContentSettings.contacts_ogrnip);
   const marketplaces = getSetting('contacts_marketplaces', defaultContentSettings.contacts_marketplaces)
     .split('\n')
     .map((line) => line.trim())
@@ -92,6 +94,30 @@ const Contacts = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {/* ИНН и ОГРНИП */}
+            {(contactsInn || contactsOgrnip) && (
+              <Card className="mt-8">
+                <CardContent className="p-6">
+                  <FileText className="h-8 w-8 mb-4 text-primary" />
+                  <h3 className="text-lg font-semibold mb-4">Реквизиты</h3>
+                  <div className="space-y-2">
+                    {contactsInn && (
+                      <div>
+                        <span className="text-sm text-muted-foreground">ИНН: </span>
+                        <span className="text-foreground font-medium">{contactsInn}</span>
+                      </div>
+                    )}
+                    {contactsOgrnip && (
+                      <div>
+                        <span className="text-sm text-muted-foreground">ОГРНИП: </span>
+                        <span className="text-foreground font-medium">{contactsOgrnip}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Card className="bg-gradient-primary text-primary-foreground">
               <CardContent className="p-8">

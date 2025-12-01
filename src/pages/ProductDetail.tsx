@@ -721,13 +721,9 @@ const ProductDetail = () => {
                       {product.colors && product.colors.length > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Цвета</span>
-                          <span className="font-medium">{product.colors.join(', ')}</span>
+                          <span className="font-medium text-right">{product.colors.join(', ')}</span>
                         </div>
                       )}
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Минимальный заказ</span>
-                        <span className="font-medium">от 1 шт.</span>
-                      </div>
                     </div>
                   </CardContent>
                 </Card>

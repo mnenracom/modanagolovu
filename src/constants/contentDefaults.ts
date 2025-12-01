@@ -14,6 +14,8 @@ export interface ContentSettings {
   contacts_description: string;
   contacts_cta: string;
   contacts_marketplaces: string;
+  contacts_inn: string;
+  contacts_ogrnip: string;
 }
 
 export const defaultContentSettings: ContentSettings = {
@@ -57,5 +59,9 @@ export const defaultContentSettings: ContentSettings = {
     'OZON 1|https://www.ozon.ru/seller/modanagolovu-2581934/?miniapp=seller_2581934',
     'OZON 2|https://www.ozon.ru/seller/pugovka-1039508/?miniapp=seller_1039508',
   ].join('\n'),
+  contacts_inn: '42020028583',
+  contacts_ogrnip: '304420213300029',
 };
+
+
 

@@ -92,9 +92,10 @@ const CategoryPage = () => {
       
       <main className="flex-1 py-12 bg-background">
         <div className="container mx-auto px-4">
+          {/* Кнопка "Назад" всегда видна, даже во время загрузки */}
           <Link to="/">
-            <Button variant="ghost" className="mb-6">
-              <ArrowLeft className="mr-2 h-4 w-4" />
+            <Button variant="ghost" className="mb-6" style={{ willChange: 'auto' }}>
+              <ArrowLeft className="mr-2 h-4 w-4 flex-shrink-0" style={{ willChange: 'auto' }} />
               Назад
             </Button>
           </Link>

@@ -47,18 +47,51 @@ export const Header = () => {
   const { wishlistCount } = useWishlist();
   const { activeTheme } = useTheme();
 
-  // Загружаем категории для выпадающего меню
+  // Загружаем категории для выпадающего меню с кешированием
   useEffect(() => {
     if (isAdminRoute) return; // Не загружаем категории в админке
+    
+    // Загружаем из кеша сразу для мгновенного отображения
+    const loadCachedCategories = () => {
+      try {
+        const cached = localStorage.getItem('header_categories');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          // Проверяем, что кеш не старше 5 минут
+          if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+            setCategories(parsed.categories || []);
+            return true;
+          }
+        }
+      } catch (error) {
+        console.warn('Ошибка чтения категорий из кеша:', error);
+      }
+      return false;
+    };
+
+    // Пытаемся загрузить из кеша
+    const hasCache = loadCachedCategories();
     
     const loadCategories = async () => {
       try {
         const data = await categoriesService.getActive();
         const transformed = data.map(transformCategoryFromSupabase);
         setCategories(transformed);
+        // Кешируем категории
+        try {
+          localStorage.setItem('header_categories', JSON.stringify({
+            categories: transformed,
+            timestamp: Date.now(),
+          }));
+        } catch (error) {
+          console.warn('Ошибка сохранения категорий в кеш:', error);
+        }
       } catch (error) {
         console.error('Ошибка загрузки категорий:', error);
-        setCategories([]);
+        // Если загрузка не удалась, но есть кеш - оставляем кеш
+        if (!hasCache) {
+          setCategories([]);
+        }
       }
     };
 
@@ -86,7 +119,7 @@ export const Header = () => {
 
   return (
     <>
-    <header className={`sticky top-0 z-50 w-full border-b bg-card shadow-sm relative overflow-hidden ${
+    <header className={`sticky top-0 z-[65] w-full border-b bg-card shadow-sm relative overflow-hidden ${
       activeTheme === 'newyear' ? 'new-year-shadow' : 
       activeTheme === 'spring' ? 'spring-shadow' : 
       ''
@@ -235,14 +268,14 @@ export const Header = () => {
           {/* Desktop Navigation */}
           <nav className="flex items-center space-x-6">
             {navigation.map((item) => {
-              // Для "Каталог" добавляем выпадающее меню категорий
-              if (item.name === 'Каталог' && categories.length > 0) {
+              // Для "Каталог" всегда показываем выпадающее меню (даже если категории еще загружаются)
+              if (item.name === 'Каталог') {
                 return (
                   <DropdownMenu key={item.name}>
                     <DropdownMenuTrigger asChild>
                       <button className="text-foreground hover:text-primary transition-smooth font-medium flex items-center gap-1">
                         {item.name}
-                        <ChevronDown className="h-4 w-4" />
+                        <ChevronDown className="h-4 w-4 flex-shrink-0" style={{ willChange: 'auto' }} />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56">
@@ -252,14 +285,18 @@ export const Header = () => {
                           Все товары
                         </DropdownMenuItem>
                       </Link>
-                      <DropdownMenuSeparator />
-                      {categories.map((category) => (
-                        <Link key={category.id} to={`/category/${category.slug}`}>
-                          <DropdownMenuItem>
-                            {category.name}
-                          </DropdownMenuItem>
-                        </Link>
-                      ))}
+                      {categories.length > 0 && (
+                        <>
+                          <DropdownMenuSeparator />
+                          {categories.map((category) => (
+                            <Link key={category.id} to={`/category/${category.slug}`}>
+                              <DropdownMenuItem>
+                                {category.name}
+                              </DropdownMenuItem>
+                            </Link>
+                          ))}
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 );
