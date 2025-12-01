@@ -27,8 +27,43 @@ const MarketplaceStats = ({ data = defaultStats }: MarketplaceStatsProps) => {
 
   return (
     <section className="border-b bg-background/50 backdrop-blur-sm relative z-[60]">
-      <div className="container mx-auto px-4 py-3">
-        <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 text-sm">
+      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-3">
+        {/* Мобильная версия: красивые карточки в сетке */}
+        <div className="md:hidden">
+          <div className="grid grid-cols-3 gap-2">
+            {/* Рейтинг */}
+            <div className="flex flex-col items-center justify-center p-2.5 bg-card rounded-lg border border-border/50 shadow-sm">
+              <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 mb-1.5" />
+              <span className="font-bold text-base mb-0.5">{stats.totalRating.toFixed(1)}</span>
+              <span className="text-muted-foreground text-[9px] text-center leading-tight">
+                ({stats.totalReviews.toLocaleString()} {stats.totalReviews === 1 ? 'оценка' : stats.totalReviews < 5 ? 'оценки' : 'оценок'})
+              </span>
+            </div>
+
+            {/* Товаров продано */}
+            <div className="flex flex-col items-center justify-center p-2.5 bg-card rounded-lg border border-border/50 shadow-sm">
+              <Package className="h-4 w-4 text-primary mb-1.5" />
+              <span className="font-bold text-base mb-0.5">{stats.totalProductsSold.toLocaleString()}</span>
+              <span className="text-muted-foreground text-[9px] text-center leading-tight">
+                товаров продано
+              </span>
+            </div>
+
+            {/* На платформе */}
+            <div className="flex flex-col items-center justify-center p-2.5 bg-card rounded-lg border border-border/50 shadow-sm">
+              <Store className="h-4 w-4 text-primary mb-1.5" />
+              <span className="font-bold text-xs text-center leading-tight mb-0.5">
+                {stats.yearsOnPlatform} {stats.yearsOnPlatform === 1 ? 'год' : stats.yearsOnPlatform < 5 ? 'года' : 'лет'} {stats.monthsOnPlatform} {stats.monthsOnPlatform === 1 ? 'мес' : 'мес'}
+              </span>
+              <span className="text-muted-foreground text-[9px] text-center leading-tight">
+                на маркетплейсах
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Десктопная версия: горизонтальное расположение */}
+        <div className="hidden md:flex flex-wrap items-center justify-center gap-4 md:gap-6 text-sm">
           {/* Рейтинг */}
           <div className="flex items-center gap-2">
             <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
@@ -69,15 +104,15 @@ const MarketplaceStats = ({ data = defaultStats }: MarketplaceStatsProps) => {
           {/* Разделитель */}
           <div className="hidden lg:block w-px h-6 bg-border" />
 
-          {/* Кнопки маркетплейсов */}
-          <div className="flex flex-wrap items-center justify-center gap-2 relative z-[61]">
+          {/* Кнопки маркетплейсов (скрыты на мобильных) */}
+          <div className="hidden md:flex flex-wrap items-center justify-center gap-2 relative z-[61]">
             <a 
               href="https://www.wildberries.ru/seller/285549" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-block relative z-[62]"
+              className="inline-block relative z-[62] flex-1 sm:flex-none min-w-[calc(50%-0.375rem)] sm:min-w-0"
             >
-              <Button size="sm" variant="secondary" className="h-7 text-xs px-3 relative z-[63] bg-background/95 hover:bg-background border shadow-sm">
+              <Button size="sm" variant="secondary" className="h-8 sm:h-7 text-[10px] sm:text-xs px-2 sm:px-3 w-full sm:w-auto relative z-[63] bg-background/95 hover:bg-background border shadow-sm">
                 Wildberries 1
               </Button>
             </a>
@@ -85,9 +120,9 @@ const MarketplaceStats = ({ data = defaultStats }: MarketplaceStatsProps) => {
               href="https://www.wildberries.ru/seller/250051301" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-block relative z-[62]"
+              className="inline-block relative z-[62] flex-1 sm:flex-none min-w-[calc(50%-0.375rem)] sm:min-w-0"
             >
-              <Button size="sm" variant="secondary" className="h-7 text-xs px-3 relative z-[63] bg-background/95 hover:bg-background border shadow-sm">
+              <Button size="sm" variant="secondary" className="h-8 sm:h-7 text-[10px] sm:text-xs px-2 sm:px-3 w-full sm:w-auto relative z-[63] bg-background/95 hover:bg-background border shadow-sm">
                 Wildberries 2
               </Button>
             </a>
@@ -95,9 +130,9 @@ const MarketplaceStats = ({ data = defaultStats }: MarketplaceStatsProps) => {
               href="https://www.ozon.ru/seller/modanagolovu-2581934/?miniapp=seller_2581934" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-block relative z-[62]"
+              className="inline-block relative z-[62] flex-1 sm:flex-none min-w-[calc(50%-0.375rem)] sm:min-w-0"
             >
-              <Button size="sm" variant="secondary" className="h-7 text-xs px-3 relative z-[63] bg-background/95 hover:bg-background border shadow-sm">
+              <Button size="sm" variant="secondary" className="h-8 sm:h-7 text-[10px] sm:text-xs px-2 sm:px-3 w-full sm:w-auto relative z-[63] bg-background/95 hover:bg-background border shadow-sm">
                 OZON 1
               </Button>
             </a>
@@ -105,9 +140,9 @@ const MarketplaceStats = ({ data = defaultStats }: MarketplaceStatsProps) => {
               href="https://www.ozon.ru/seller/pugovka-1039508/?miniapp=seller_1039508" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-block relative z-[62]"
+              className="inline-block relative z-[62] flex-1 sm:flex-none min-w-[calc(50%-0.375rem)] sm:min-w-0"
             >
-              <Button size="sm" variant="secondary" className="h-7 text-xs px-3 relative z-[63] bg-background/95 hover:bg-background border shadow-sm">
+              <Button size="sm" variant="secondary" className="h-8 sm:h-7 text-[10px] sm:text-xs px-2 sm:px-3 w-full sm:w-auto relative z-[63] bg-background/95 hover:bg-background border shadow-sm">
                 OZON 2
               </Button>
             </a>

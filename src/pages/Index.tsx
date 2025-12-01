@@ -130,7 +130,7 @@ const Index = () => {
       
       <main className="flex-1">
         {/* Hero Banner Slider */}
-        <section className="relative h-[350px] overflow-hidden">
+        <section className="relative h-[250px] sm:h-[350px] overflow-hidden">
           {bannersLoading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-muted">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -148,21 +148,21 @@ const Index = () => {
                 }}
               />
               <div className="absolute inset-0 bg-gradient-overlay" />
-              <div className="container relative mx-auto px-4 h-full flex items-center">
+              <div className="container relative mx-auto px-3 sm:px-4 h-full flex items-center">
                 <div className="max-w-2xl text-white">
-                  <Badge variant="secondary" className="mb-4 bg-accent text-accent-foreground">
+                  <Badge variant="secondary" className="mb-2 sm:mb-4 bg-accent text-accent-foreground text-xs sm:text-sm">
                     Новая коллекция
                   </Badge>
-                  <h2 className="text-4xl font-bold mb-4">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-4">
                     Головные уборы оптом
                   </h2>
-                  <p className="text-lg mb-6 text-white/90">
+                  <p className="text-sm sm:text-base md:text-lg mb-4 sm:mb-6 text-white/90">
                     Широкий ассортимент платков, косынок, бандан и капоров для вашего бизнеса
                   </p>
                   <Link to="/catalog">
-                    <Button size="lg" className="bg-accent hover:bg-accent/90">
+                    <Button size="lg" className="bg-accent hover:bg-accent/90 text-sm sm:text-base h-9 sm:h-11">
                       Смотреть каталог
-                      <ArrowRight className="ml-2 h-5 w-5" />
+                      <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                     </Button>
                   </Link>
                 </div>
@@ -177,9 +177,9 @@ const Index = () => {
                 loop: true,
               }}
             >
-              <CarouselContent className="h-[350px]">
+              <CarouselContent className="h-[250px] sm:h-[350px]">
                 {banners.map((banner) => (
-                  <CarouselItem key={banner.id} className="h-[350px]">
+                  <CarouselItem key={banner.id} className="h-[250px] sm:h-[350px]">
                     <div className="relative h-full w-full">
                       {/* Мобильное изображение */}
                       {banner.mobileImageUrl && (
@@ -208,20 +208,20 @@ const Index = () => {
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-overlay" />
-                      <div className="container relative mx-auto px-4 h-full flex items-center">
+                      <div className="container relative mx-auto px-3 sm:px-4 h-full flex items-center">
                         <div className="max-w-2xl text-white">
                           {banner.title && (
-                            <Badge variant="secondary" className="mb-4 bg-accent text-accent-foreground">
+                            <Badge variant="secondary" className="mb-2 sm:mb-4 bg-accent text-accent-foreground text-xs sm:text-sm">
                               {banner.title}
                             </Badge>
                           )}
                           {banner.subtitle && (
                             <>
-                              <h2 className="text-4xl font-bold mb-4">
+                              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-4">
                                 {banner.subtitle.split('\n')[0] || 'Головные уборы оптом'}
                               </h2>
                               {banner.subtitle.split('\n').length > 1 && (
-                                <p className="text-lg mb-6 text-white/90">
+                                <p className="text-sm sm:text-base md:text-lg mb-4 sm:mb-6 text-white/90">
                                   {banner.subtitle.split('\n').slice(1).join(' ')}
                                 </p>
                               )}
@@ -229,9 +229,9 @@ const Index = () => {
                           )}
                           {banner.buttonText && banner.buttonLink && (
                             <Link to={banner.buttonLink}>
-                              <Button size="lg" className="bg-accent hover:bg-accent/90">
+                              <Button size="lg" className="bg-accent hover:bg-accent/90 text-sm sm:text-base h-9 sm:h-11">
                                 {banner.buttonText}
-                                <ArrowRight className="ml-2 h-5 w-5" />
+                                <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                               </Button>
                             </Link>
                           )}
@@ -252,9 +252,9 @@ const Index = () => {
         </section>
 
         {/* Popular Products & New Products - Side by Side */}
-        <section className="py-8 bg-background">
-          <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section className="py-6 sm:py-8 bg-background">
+          <div className="container mx-auto px-3 sm:px-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {/* Хиты продаж - Left Panel */}
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -327,20 +327,20 @@ const Index = () => {
         </section>
 
         {/* Features / Преимущества */}
-        <section className="py-10 bg-gradient-to-b from-background to-muted/20">
-          <div className="container mx-auto px-4">
-            <h2 className="text-2xl font-bold text-center mb-6">Почему выбирают нас</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <section className="py-4 sm:py-10 bg-gradient-to-b from-background to-muted/20">
+          <div className="container mx-auto px-3 sm:px-4">
+            <h2 className="text-lg sm:text-2xl font-bold text-center mb-3 sm:mb-6">Почему выбирают нас</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6">
               {features.map((feature) => (
-                <Card key={feature.title} className="text-center p-6 hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 hover:border-primary/50">
-                  <CardContent className="pt-6">
-                    <div className="mb-4 flex justify-center">
-                      <div className={`p-4 rounded-full bg-muted ${feature.color} bg-opacity-10`}>
-                        <feature.icon className={`h-8 w-8 ${feature.color}`} />
+                <Card key={feature.title} className="text-center p-3 sm:p-6 hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 hover:border-primary/50">
+                  <CardContent className="pt-0 sm:pt-6">
+                    <div className="mb-2 sm:mb-4 flex justify-center">
+                      <div className={`p-2 sm:p-4 rounded-full bg-muted ${feature.color} bg-opacity-10`}>
+                        <feature.icon className={`h-5 w-5 sm:h-8 sm:w-8 ${feature.color}`} />
                       </div>
                     </div>
-                    <h3 className="font-bold text-lg mb-2">{feature.title}</h3>
-                    <p className="text-muted-foreground text-sm">{feature.description}</p>
+                    <h3 className="font-bold text-sm sm:text-lg mb-1 sm:mb-2">{feature.title}</h3>
+                    <p className="text-muted-foreground text-[10px] sm:text-sm leading-tight">{feature.description}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -349,42 +349,42 @@ const Index = () => {
         </section>
 
         {/* Quick Links / Быстрые ссылки */}
-        <section className="py-8 bg-background border-t border-b">
-          <div className="container mx-auto px-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <section className="py-6 sm:py-8 bg-background border-t border-b">
+          <div className="container mx-auto px-3 sm:px-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               <Link to="/catalog" className="group">
-                <Card className="p-6 text-center hover:shadow-lg transition-all duration-300 hover:border-primary">
+                <Card className="p-4 sm:p-6 text-center hover:shadow-lg transition-all duration-300 hover:border-primary">
                   <CardContent className="p-0">
-                    <Package className="h-8 w-8 mx-auto mb-2 text-primary group-hover:scale-110 transition-transform" />
-                    <p className="font-semibold">Каталог</p>
-                    <p className="text-xs text-muted-foreground mt-1">Все товары</p>
+                    <Package className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-1.5 sm:mb-2 text-primary group-hover:scale-110 transition-transform" />
+                    <p className="font-semibold text-sm sm:text-base">Каталог</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Все товары</p>
                   </CardContent>
                 </Card>
               </Link>
               <Link to="/about" className="group">
-                <Card className="p-6 text-center hover:shadow-lg transition-all duration-300 hover:border-primary">
+                <Card className="p-4 sm:p-6 text-center hover:shadow-lg transition-all duration-300 hover:border-primary">
                   <CardContent className="p-0">
-                    <Star className="h-8 w-8 mx-auto mb-2 text-primary group-hover:scale-110 transition-transform" />
-                    <p className="font-semibold">О нас</p>
-                    <p className="text-xs text-muted-foreground mt-1">О компании</p>
+                    <Star className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-1.5 sm:mb-2 text-primary group-hover:scale-110 transition-transform" />
+                    <p className="font-semibold text-sm sm:text-base">О нас</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">О компании</p>
                   </CardContent>
                 </Card>
               </Link>
               <Link to="/contacts" className="group">
-                <Card className="p-6 text-center hover:shadow-lg transition-all duration-300 hover:border-primary">
+                <Card className="p-4 sm:p-6 text-center hover:shadow-lg transition-all duration-300 hover:border-primary">
                   <CardContent className="p-0">
-                    <Clock className="h-8 w-8 mx-auto mb-2 text-primary group-hover:scale-110 transition-transform" />
-                    <p className="font-semibold">Контакты</p>
-                    <p className="text-xs text-muted-foreground mt-1">Связаться с нами</p>
+                    <Clock className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-1.5 sm:mb-2 text-primary group-hover:scale-110 transition-transform" />
+                    <p className="font-semibold text-sm sm:text-base">Контакты</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Связаться с нами</p>
                   </CardContent>
                 </Card>
               </Link>
               <Link to="/blog" className="group">
-                <Card className="p-6 text-center hover:shadow-lg transition-all duration-300 hover:border-primary">
+                <Card className="p-4 sm:p-6 text-center hover:shadow-lg transition-all duration-300 hover:border-primary">
                   <CardContent className="p-0">
-                    <Sparkles className="h-8 w-8 mx-auto mb-2 text-primary group-hover:scale-110 transition-transform" />
-                    <p className="font-semibold">Блог</p>
-                    <p className="text-xs text-muted-foreground mt-1">Полезные статьи</p>
+                    <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-1.5 sm:mb-2 text-primary group-hover:scale-110 transition-transform" />
+                    <p className="font-semibold text-sm sm:text-base">Блог</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Полезные статьи</p>
                   </CardContent>
                 </Card>
               </Link>
@@ -393,13 +393,13 @@ const Index = () => {
         </section>
 
         {/* Marketplaces */}
-        <section className="py-10 bg-gradient-primary text-primary-foreground">
-          <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl font-bold mb-4">Найдите нас на маркетплейсах</h2>
-            <p className="text-lg mb-8 text-primary-foreground/90">
+        <section className="py-6 sm:py-10 bg-gradient-primary text-primary-foreground">
+          <div className="container mx-auto px-3 sm:px-4 text-center">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4">Найдите нас на маркетплейсах</h2>
+            <p className="text-sm sm:text-base md:text-lg mb-6 sm:mb-8 text-primary-foreground/90">
               Мы представлены на крупнейших торговых площадках России
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
               <a href="https://www.wildberries.ru/seller/285549" target="_blank" rel="noopener noreferrer">
                 <Button size="lg" variant="secondary">
                   Wildberries 1

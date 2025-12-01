@@ -70,17 +70,17 @@ export const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
         <Button
           variant="ghost"
           size="icon"
-          className={`absolute top-2 left-2 z-10 h-9 w-9 rounded-full bg-background/90 hover:bg-background transition-all ${
+          className={`absolute top-2 left-2 z-10 h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-background/95 hover:bg-background transition-all shadow-sm ${
             isFavorite ? 'text-red-500 hover:text-red-600' : 'text-muted-foreground hover:text-primary'
           }`}
           onClick={handleWishlistClick}
           disabled={isToggling}
         >
-          <Heart className={`h-5 w-5 ${isFavorite ? 'fill-current' : ''}`} />
+          <Heart className={`h-4 w-4 sm:h-5 sm:w-5 ${isFavorite ? 'fill-current' : ''}`} />
         </Button>
         
         {product.inStock && (
-          <Badge variant="outline" className="text-xs border-primary text-primary absolute top-2 right-2 z-10 bg-background/90">
+          <Badge variant="outline" className="text-[10px] sm:text-xs border-primary text-primary absolute top-2 right-2 z-10 bg-background/95 px-2 sm:px-2 py-0.5">
             В наличии
           </Badge>
         )}
@@ -100,41 +100,54 @@ export const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
           </div>
         )}
       </div>
-      <CardContent className="p-4 flex-1 flex flex-col">
-        <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-smooth line-clamp-2">
+      <CardContent className="p-3 sm:p-4 flex-1 flex flex-col">
+        {/* Название товара */}
+        <h3 className="font-semibold text-sm sm:text-lg mb-2 sm:mb-2 group-hover:text-primary transition-smooth line-clamp-2 leading-tight">
           {product.name}
         </h3>
-        <div className="mb-3 min-h-[2.5rem]">
+        
+        {/* Описание - скрыто на мобильных для компактности */}
+        <div className="mb-2 sm:mb-3 min-h-0 sm:min-h-[2.5rem] hidden sm:block">
           <p className="text-sm text-muted-foreground line-clamp-2">
             {product.description}
           </p>
         </div>
-        {/* Material tags block (fixed two lines) */}
-        <div className="mt-2 mb-1 min-h-[2.5rem] max-h-[2.5rem] overflow-hidden">
-          <div className="flex flex-wrap gap-2">
-            {materialTags.map((tag) => (
-              <Badge key={tag} variant="secondary" className="text-xs whitespace-nowrap">
+        
+        {/* Material tags */}
+        <div className="mb-2 sm:mb-3 min-h-[1.25rem] sm:min-h-[2.5rem]">
+          <div className="flex flex-wrap gap-1 sm:gap-2">
+            {materialTags.slice(0, 2).map((tag) => (
+              <Badge key={tag} variant="secondary" className="text-[10px] sm:text-xs whitespace-nowrap px-1.5 py-0.5">
                 {tag}
               </Badge>
             ))}
+            {materialTags.length > 2 && (
+              <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 py-0.5">
+                +{materialTags.length - 2}
+              </Badge>
+            )}
           </div>
         </div>
 
-        {/* Price row: розничная цена */}
-        <div className="mt-2">
-          <div className="flex items-center justify-end">
-            <span className="text-sm text-muted-foreground mr-2">от</span>
-            <p className="text-2xl font-extrabold text-primary">{retailPrice.toLocaleString()} ₽</p>
+        {/* Цена - выделена на мобильных */}
+        <div className="mt-auto">
+          <div className="flex items-baseline justify-between sm:justify-end">
+            <span className="text-xs sm:text-sm text-muted-foreground sm:hidden">Цена:</span>
+            <div className="flex items-baseline gap-1 sm:gap-0">
+              <span className="text-xs sm:text-sm text-muted-foreground mr-1 sm:mr-2">от</span>
+              <p className="text-xl sm:text-2xl font-extrabold text-primary">{retailPrice.toLocaleString()} ₽</p>
+            </div>
           </div>
         </div>
       </CardContent>
-      <CardFooter className="p-4 pt-0">
+      <CardFooter className="p-3 sm:p-4 pt-0">
         <Button 
-          className="w-full" 
+          className="w-full text-sm sm:text-base h-9 sm:h-10 font-semibold" 
           onClick={handleAddToCartClick}
         >
-          <ShoppingCart className="mr-2 h-4 w-4" />
-          В корзину
+          <ShoppingCart className="mr-2 h-4 w-4 sm:h-4 sm:w-4" />
+          <span className="hidden sm:inline">В корзину</span>
+          <span className="sm:hidden">В корзину</span>
         </Button>
       </CardFooter>
     </Card>

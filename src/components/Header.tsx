@@ -98,10 +98,130 @@ export const Header = () => {
       {activeTheme === 'spring' && (
         <div className="absolute top-0 left-0 right-0 h-1 spring-garland opacity-60" />
       )}
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
+      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+        {/* Мобильная версия: всё в одну строку */}
+        <div className="md:hidden flex items-center justify-between gap-2">
+          {/* Мобильное меню слева */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[280px] sm:w-[300px] z-[70]">
+              <nav className="flex flex-col space-y-4 mt-8">
+                {navigation.map((item) => (
+                  <div key={item.name}>
+                    <Link
+                      to={item.href}
+                      className="text-foreground hover:text-primary transition-smooth font-medium text-lg block"
+                    >
+                      {item.name}
+                    </Link>
+                    {/* Показываем категории под "Каталог" в мобильном меню */}
+                    {item.name === 'Каталог' && categories.length > 0 && (
+                      <div className="ml-4 mt-2 space-y-2">
+                        <Link
+                          to="/catalog"
+                          className="text-muted-foreground hover:text-primary transition-smooth text-sm block"
+                        >
+                          Все товары
+                        </Link>
+                        {categories.map((category) => (
+                          <Link
+                            key={category.id}
+                            to={`/category/${category.slug}`}
+                            className="text-muted-foreground hover:text-primary transition-smooth text-sm block"
+                          >
+                            {category.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div className="pt-4 border-t space-y-2">
+                  {isAuthenticated && user ? (
+                    <>
+                      <Link to="/account">
+                        <Button variant="ghost" className="w-full justify-start font-medium">
+                          <User className="h-4 w-4 mr-2" />
+                          Личный кабинет
+                        </Button>
+                      </Link>
+                      <Button variant="ghost" className="w-full justify-start font-medium text-destructive" onClick={handleLogout}>
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Выйти
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Link to="/auth/login">
+                        <Button variant="ghost" className="w-full justify-start font-medium">
+                          ВХОД
+                        </Button>
+                      </Link>
+                      <Link to="/auth/register">
+                        <Button className="w-full justify-start font-medium">
+                          РЕГИСТРАЦИЯ
+                        </Button>
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </nav>
+            </SheetContent>
+          </Sheet>
+
+          {/* Название по центру */}
+          <Link to="/" className="flex items-center space-x-1 sm:space-x-2 flex-1 justify-center">
+            <h1 className={`text-lg sm:text-xl font-bold ${
+              activeTheme === 'newyear' ? 'new-year-gradient' : 
+              activeTheme === 'spring' ? 'spring-gradient' : 
+              'bg-gradient-primary bg-clip-text text-transparent'
+            }`}>
+              {activeTheme === 'newyear' && <span className="hidden sm:inline">🎄 </span>}
+              {activeTheme === 'newyear' && 'МОДАНАГОЛОВУ'}
+              {activeTheme === 'newyear' && <span className="hidden sm:inline"> ✨</span>}
+              {activeTheme === 'spring' && <span className="hidden sm:inline">🌸 </span>}
+              {activeTheme === 'spring' && 'МОДАНАГОЛОВУ'}
+              {activeTheme === 'spring' && <span className="hidden sm:inline"> 🌸</span>}
+              {activeTheme === 'none' && 'МОДАНАГОЛОВУ'}
+            </h1>
+          </Link>
+          
+          {/* Иконки справа */}
+          <div className="flex items-center space-x-2">
+              {isAuthenticated && (
+                <Link to="/account?tab=wishlist">
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Heart className="h-5 w-5" />
+                    {wishlistCount > 0 && (
+                      <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-accent text-accent-foreground text-xs flex items-center justify-center">
+                        {wishlistCount}
+                      </span>
+                    )}
+                  </Button>
+                </Link>
+              )}
+              
+              <Link to="/cart">
+                <Button variant="ghost" size="icon" className="relative">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartItemsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-accent text-accent-foreground text-xs flex items-center justify-center">
+                      {cartItemsCount}
+                    </span>
+                  )}
+                </Button>
+              </Link>
+          </div>
+        </div>
+
+        {/* Десктопная версия: всё в одну строку */}
+        <div className="hidden md:flex items-center justify-between gap-2">
           <Link to="/" className="flex items-center space-x-2">
-            <h1 className={`text-2xl font-bold ${
+            <h1 className={`text-xl md:text-2xl font-bold ${
               activeTheme === 'newyear' ? 'new-year-gradient' : 
               activeTheme === 'spring' ? 'spring-gradient' : 
               'bg-gradient-primary bg-clip-text text-transparent'
@@ -113,7 +233,7 @@ export const Header = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
+          <nav className="flex items-center space-x-6">
             {navigation.map((item) => {
               // Для "Каталог" добавляем выпадающее меню категорий
               if (item.name === 'Каталог' && categories.length > 0) {
@@ -159,7 +279,7 @@ export const Header = () => {
           <div className="flex items-center space-x-4">
             {/* Auth Buttons / User Menu */}
             {isAuthenticated && user ? (
-              <div className="hidden md:flex items-center space-x-2">
+              <div className="flex items-center space-x-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="font-medium">
@@ -181,7 +301,7 @@ export const Header = () => {
                 </DropdownMenu>
               </div>
             ) : (
-              <div className="hidden md:flex items-center space-x-2">
+              <div className="flex items-center space-x-2">
                 <Link to="/auth/login">
                   <Button variant="ghost" className="font-medium">
                     ВХОД
@@ -218,88 +338,6 @@ export const Header = () => {
                 )}
               </Button>
             </Link>
-
-            {/* Mobile Navigation */}
-            <Sheet>
-              <SheetTrigger asChild className="md:hidden">
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[250px]">
-                <nav className="flex flex-col space-y-4 mt-8">
-                  {navigation.map((item) => (
-                    <div key={item.name}>
-                      <Link
-                        to={item.href}
-                        className="text-foreground hover:text-primary transition-smooth font-medium text-lg block"
-                      >
-                        {item.name}
-                      </Link>
-                      {/* Показываем категории под "Каталог" в мобильном меню */}
-                      {item.name === 'Каталог' && categories.length > 0 && (
-                        <div className="ml-4 mt-2 space-y-2">
-                          <Link
-                            to="/catalog"
-                            className="text-muted-foreground hover:text-primary transition-smooth text-sm block"
-                          >
-                            Все товары
-                          </Link>
-                          {categories.map((category) => (
-                            <Link
-                              key={category.id}
-                              to={`/category/${category.slug}`}
-                              className="text-muted-foreground hover:text-primary transition-smooth text-sm block"
-                            >
-                              {category.name}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  <div className="pt-4 border-t space-y-2">
-                    {isAuthenticated && user ? (
-                      <>
-                        <Link to="/account">
-                          <Button variant="ghost" className="w-full justify-start font-medium">
-                            <User className="h-4 w-4 mr-2" />
-                            Личный кабинет
-                          </Button>
-                        </Link>
-                        <Link to="/account?tab=wishlist">
-                          <Button variant="ghost" className="w-full justify-start font-medium">
-                            <Heart className="h-4 w-4 mr-2" />
-                            Избранное {wishlistCount > 0 && `(${wishlistCount})`}
-                          </Button>
-                        </Link>
-                        <Button 
-                          variant="ghost" 
-                          className="w-full justify-start font-medium"
-                          onClick={handleLogout}
-                        >
-                          <LogOut className="h-4 w-4 mr-2" />
-                          Выйти
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Link to="/auth/login">
-                          <Button variant="ghost" className="w-full justify-start font-medium">
-                            ВХОД
-                          </Button>
-                        </Link>
-                        <Link to="/auth/register">
-                          <Button className="w-full justify-start font-medium">
-                            РЕГИСТРАЦИЯ
-                          </Button>
-                        </Link>
-                      </>
-                    )}
-                  </div>
-                </nav>
-              </SheetContent>
-            </Sheet>
           </div>
         </div>
       </div>

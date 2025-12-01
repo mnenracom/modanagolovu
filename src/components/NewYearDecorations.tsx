@@ -29,6 +29,7 @@ export const NewYearDecorations = () => {
   const { activeTheme } = useTheme();
   const [snowflakes, setSnowflakes] = useState<Snowflake[]>([]);
   const [confetti, setConfetti] = useState<Confetti[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
   
   // Проверяем, не находимся ли мы в админке
   const isAdminRoute = location.pathname.startsWith('/admin');
@@ -36,18 +37,31 @@ export const NewYearDecorations = () => {
   // Показываем только если активна новогодняя тема
   const shouldShow = activeTheme === 'newyear';
 
+  // Определяем размер экрана
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640); // sm breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   useEffect(() => {
     if (!shouldShow || isAdminRoute) return;
 
     // Создаем снежинки и звёзды
     const createSnowflakes = () => {
       const flakes: Snowflake[] = [];
-      for (let i = 0; i < 80; i++) {
+      // На мобильных меньше снежинок для производительности
+      const count = isMobile ? 30 : 80;
+      for (let i = 0; i < count; i++) {
         flakes.push({
           id: i,
           left: Math.random() * 100,
           top: -10 - Math.random() * 20,
-          size: Math.random() * 5 + 1.5,
+          size: isMobile ? Math.random() * 3 + 1 : Math.random() * 5 + 1.5, // Меньше размер на мобильных
           duration: Math.random() * 4 + 6,
           delay: Math.random() * 8,
           type: Math.random() > 0.7 ? 'star' : 'snowflake',
@@ -60,13 +74,14 @@ export const NewYearDecorations = () => {
     const createConfetti = () => {
       const confettiItems: Confetti[] = [];
       const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#ff69b4'];
-      // Уменьшили количество с 60 до 20
-      for (let i = 0; i < 20; i++) {
+      // На мобильных меньше конфетти
+      const count = isMobile ? 10 : 20;
+      for (let i = 0; i < count; i++) {
         confettiItems.push({
           id: i,
           left: Math.random() * 100,
           top: -5 - Math.random() * 10,
-          size: Math.random() * 6 + 3, // Уменьшили размер
+          size: isMobile ? Math.random() * 4 + 2 : Math.random() * 6 + 3, // Меньше размер на мобильных
           duration: Math.random() * 4 + 5, // Увеличили длительность (медленнее)
           delay: Math.random() * 8, // Увеличили задержку
           color: colors[Math.floor(Math.random() * colors.length)],
@@ -127,8 +142,8 @@ export const NewYearDecorations = () => {
         ))}
       </div>
 
-      {/* Блестящие звёздочки (уменьшенное количество) */}
-      <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
+      {/* Блестящие звёздочки (уменьшенное количество, меньше на мобильных) */}
+      <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden hidden sm:block">
         {[...Array(10)].map((_, i) => (
           <div
             key={i}
@@ -145,9 +160,9 @@ export const NewYearDecorations = () => {
         ))}
       </div>
 
-      {/* Дополнительные блестящие частицы */}
+      {/* Дополнительные блестящие частицы (меньше на мобильных) */}
       <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
-        {[...Array(25)].map((_, i) => (
+        {[...Array(isMobile ? 10 : 25)].map((_, i) => (
           <div
             key={`sparkle-${i}`}
             className="absolute new-year-sparkle"

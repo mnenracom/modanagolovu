@@ -318,34 +318,21 @@ const ProductDetail = () => {
       
       <main className="flex-1 py-12 bg-background">
         <div className="container mx-auto px-4">
+          {/* Название товара на мобильных - между статистикой и миниатюрами */}
+          <div className="md:hidden mb-4">
+            <h1 className="text-2xl font-bold">{product.name}</h1>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Product Images Carousel */}
-            <div className="flex gap-4 items-start">
-              {/* Thumbnails - слева, вертикальная колонка с прокруткой */}
+            <div className="flex flex-col md:flex-row gap-3 md:gap-4 items-start">
+              {/* Thumbnails - на мобильных сверху горизонтально, на десктопе слева вертикально */}
               {allImages.length > 1 && (
-                <div className="flex flex-col items-center flex-shrink-0" style={{ maxWidth: 'fit-content', height: '100%', maxHeight: '100%' }}>
-                  {/* Кнопка прокрутки вверх - всегда видна, если есть больше 6 миниатюр */}
-                  {allImages.length > 6 && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className={`h-8 w-8 rounded-full p-0 flex-shrink-0 mb-1 ${thumbnailScrollIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      onClick={() => setThumbnailScrollIndex(Math.max(0, thumbnailScrollIndex - 1))}
-                      disabled={thumbnailScrollIndex === 0}
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                  )}
-                  
-                  {/* Контейнер с миниатюрами - ограничен по высоте */}
-                  <div className="flex flex-col gap-2 flex-shrink-0">
-                    {allImages.map((img, index) => {
-                      // Показываем только 6 миниатюр, начиная с thumbnailScrollIndex
-                      if (index < thumbnailScrollIndex || index >= thumbnailScrollIndex + 6) {
-                        return null;
-                      }
-                      
-                      return (
+                <>
+                  {/* Мобильная версия: горизонтальные миниатюры сверху */}
+                  <div className="w-full md:hidden">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-2 px-2">
+                      {allImages.map((img, index) => (
                         <button
                           key={index}
                           onClick={() => api?.scrollTo(index)}
@@ -355,7 +342,7 @@ const ProductDetail = () => {
                               : 'border-transparent hover:border-primary/50'
                           }`}
                         >
-                          <div className="aspect-[3/4] overflow-hidden bg-muted" style={{ width: 'calc(5rem * 0.98)', maxWidth: 'calc(6rem * 0.98)' }}>
+                          <div className="aspect-[3/4] overflow-hidden bg-muted w-16">
                             <img
                               src={img}
                               alt={`${product.name} - миниатюра ${index + 1}`}
@@ -366,27 +353,76 @@ const ProductDetail = () => {
                             />
                           </div>
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-                  
-                  {/* Кнопка прокрутки вниз - только если есть место */}
-                  {allImages.length > 6 && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className={`h-8 w-8 rounded-full p-0 flex-shrink-0 mt-1 ${thumbnailScrollIndex + 6 >= allImages.length ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      onClick={() => setThumbnailScrollIndex(Math.min(allImages.length - 6, thumbnailScrollIndex + 1))}
-                      disabled={thumbnailScrollIndex + 6 >= allImages.length}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
+
+                  {/* Десктопная версия: вертикальные миниатюры слева */}
+                  <div className="hidden md:flex flex-col items-center flex-shrink-0" style={{ maxWidth: 'fit-content', height: '100%', maxHeight: '100%' }}>
+                    {/* Кнопка прокрутки вверх - всегда видна, если есть больше 6 миниатюр */}
+                    {allImages.length > 6 && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className={`h-8 w-8 rounded-full p-0 flex-shrink-0 mb-1 ${thumbnailScrollIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => setThumbnailScrollIndex(Math.max(0, thumbnailScrollIndex - 1))}
+                        disabled={thumbnailScrollIndex === 0}
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </Button>
+                    )}
+                    
+                    {/* Контейнер с миниатюрами - ограничен по высоте */}
+                    <div className="flex flex-col gap-2 flex-shrink-0">
+                      {allImages.map((img, index) => {
+                        // Показываем только 6 миниатюр, начиная с thumbnailScrollIndex
+                        if (index < thumbnailScrollIndex || index >= thumbnailScrollIndex + 6) {
+                          return null;
+                        }
+                        
+                        return (
+                          <button
+                            key={index}
+                            onClick={() => api?.scrollTo(index)}
+                            className={`relative overflow-hidden rounded-md border-2 transition-all flex-shrink-0 ${
+                              current === index 
+                                ? 'border-primary scale-105' 
+                                : 'border-transparent hover:border-primary/50'
+                            }`}
+                          >
+                            <div className="aspect-[3/4] overflow-hidden bg-muted w-20">
+                              <img
+                                src={img}
+                                alt={`${product.name} - миниатюра ${index + 1}`}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23ddd" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EНет фото%3C/text%3E%3C/svg%3E';
+                                }}
+                              />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Кнопка прокрутки вниз - только если есть место */}
+                    {allImages.length > 6 && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className={`h-8 w-8 rounded-full p-0 flex-shrink-0 mt-1 ${thumbnailScrollIndex + 6 >= allImages.length ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => setThumbnailScrollIndex(Math.min(allImages.length - 6, thumbnailScrollIndex + 1))}
+                        disabled={thumbnailScrollIndex + 6 >= allImages.length}
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </>
               )}
               
-              {/* Main Image - справа от миниатюр */}
-              <div className="relative flex-1" style={{ height: 'fit-content' }}>
+              {/* Main Image - на мобильных под миниатюрами, на десктопе справа от миниатюр */}
+              <div className="relative flex-1 w-full md:w-auto" style={{ height: 'fit-content' }}>
                 <div className="aspect-[3/4] w-full relative">
                   {/* Badge "В наличии" в углу сверху */}
                   {product.inStock && (
@@ -441,7 +477,8 @@ const ProductDetail = () => {
                 )}
               </div>
 
-              <h1 className="text-4xl font-bold mb-4">{product.name}</h1>
+              {/* Название товара - скрыто на мобильных, показано на десктопе */}
+              <h1 className="hidden md:block text-4xl font-bold mb-4">{product.name}</h1>
 
               {/* Similar Products Section - Compact */}
               {similarProducts.length > 0 && (
