@@ -51,20 +51,20 @@ export const CartSummary = ({ onCheckout }: CartSummaryProps) => {
   };
 
   return (
-    <Card className="sticky top-24">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
+    <Card className="sticky top-20 sm:top-24 w-full">
+      <CardHeader className="pb-3 p-4 sm:p-6">
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
           <ShoppingCart className="h-4 w-4" />
           Итого заказа
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 p-4">
+      <CardContent className="space-y-3 p-4 sm:p-6">
         {/* Тип заказа */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Тип заказа:</span>
+        <div className="flex items-center justify-between text-xs sm:text-sm">
+          <span className="text-muted-foreground">Тип заказа:</span>
           <Badge 
             variant={pricing.orderType === 'wholesale' ? 'default' : 'secondary'}
-            className={pricing.orderType === 'wholesale' ? 'bg-green-600 text-white' : ''}
+            className={`text-xs ${pricing.orderType === 'wholesale' ? 'bg-green-600 text-white' : ''}`}
           >
             <Package className="h-3 w-3 mr-1" />
             {pricing.orderType === 'wholesale' ? 'Оптовый' : 'Розничный'}
@@ -72,8 +72,8 @@ export const CartSummary = ({ onCheckout }: CartSummaryProps) => {
         </div>
 
         {/* Количество товаров */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Товаров:</span>
+        <div className="flex items-center justify-between text-xs sm:text-sm">
+          <span className="text-muted-foreground">Товаров:</span>
           <span className="font-semibold">
             {items.reduce((sum, item) => sum + item.quantity, 0)} шт.
           </span>
@@ -193,9 +193,9 @@ export const CartSummary = ({ onCheckout }: CartSummaryProps) => {
 
         {/* Итоговая сумма */}
         <div className="pt-2 border-t space-y-1">
-          <div className="flex items-center justify-between text-lg font-bold">
+          <div className="flex items-center justify-between text-base sm:text-lg font-bold">
             <span>Сумма заказа:</span>
-            <span className="text-primary text-2xl">
+            <span className="text-primary text-xl sm:text-2xl">
               {pricing.currentTotal.toLocaleString()} ₽
             </span>
           </div>

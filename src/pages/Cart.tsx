@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Trash2, ShoppingBag, AlertCircle } from 'lucide-react';
+import { Trash2, ShoppingBag, AlertCircle, Plus, Minus } from 'lucide-react';
 import { toast } from 'sonner';
 import { CartSummary } from '@/components/cart/CartSummary';
 
@@ -82,14 +82,14 @@ const Cart = () => {
     <div className="flex min-h-screen flex-col">
       <Header />
       
-      <main className="flex-1 py-4 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-4 gap-4">
-            <h1 className="text-4xl font-bold">Корзина</h1>
+      <main className="flex-1 py-4 bg-background overflow-x-hidden">
+        <div className="container mx-auto px-3 sm:px-4 max-w-full">
+          <div className="flex items-center justify-between mb-4 gap-3 sm:gap-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Корзина</h1>
             <Button
               variant="outline"
               size="sm"
-              className="ml-auto"
+              className="text-xs sm:text-sm whitespace-nowrap"
               onClick={() => {
                 if (items.length === 0) return;
                 if (window.confirm('Очистить всю корзину?')) {
@@ -102,104 +102,196 @@ const Cart = () => {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
             {/* Cart Items */}
-            <div className="lg:col-span-2 space-y-2">
-              {items.map((item) => (
-                <Card 
-                  key={item.product.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => navigate(`/product/${item.product.id}`)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <div className="w-20 aspect-[3/4] flex-shrink-0 overflow-hidden rounded-lg bg-muted">
-                        <img
-                          src={item.product.image}
-                          alt={item.product.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23ddd" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EНет фото%3C/text%3E%3C/svg%3E';
-                          }}
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-base mb-1.5">
-                          {item.product.name}
-                        </h3>
-                        {item.selectedColor && (
-                          <p className="text-xs text-muted-foreground mb-0.5">
-                            Цвет: {item.selectedColor}
-                          </p>
-                        )}
-                        {item.selectedSize && (
-                          <p className="text-xs text-muted-foreground mb-0.5">
-                            Размер: {item.selectedSize}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground">
-                          {item.product.material}
-                        </p>
-                        <div className="flex items-center gap-4 mt-2">
-                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                            <label className="text-sm font-medium">Количество:</label>
-                            <Input
-                              type="number"
-                              min={1}
-                              value={item.quantity}
-                              onChange={(e) =>
-                                updateQuantity(item.product.id, parseInt(e.target.value) || 0)
-                              }
-                              className="w-24"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeFromCart(item.product.id);
+            <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+              {items.map((item) => {
+                const priceInfo = getItemPriceInfo(item);
+                return (
+                  <Card 
+                    key={item.product.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
+                    onClick={() => navigate(`/product/${item.product.id}`)}
+                  >
+                    <CardContent className="p-0">
+                      {/* Мобильная версия: вертикальная компоновка */}
+                      <div className="md:hidden">
+                        {/* Изображение товара */}
+                        <div className="w-full aspect-[4/3] overflow-hidden bg-muted">
+                          <img
+                            src={item.product.image}
+                            alt={item.product.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23ddd" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EНет фото%3C/text%3E%3C/svg%3E';
                             }}
-                            className="text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          />
+                        </div>
+                        {/* Информация о товаре */}
+                        <div className="p-3 space-y-2">
+                          <h3 className="font-semibold text-sm leading-tight">
+                            {item.product.name}
+                          </h3>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            {item.selectedColor && (
+                              <span>Цвет: {item.selectedColor}</span>
+                            )}
+                            {item.selectedSize && (
+                              <span>Размер: {item.selectedSize}</span>
+                            )}
+                            {item.product.material && (
+                              <span>{item.product.material}</span>
+                            )}
+                          </div>
+                          {/* Цена и количество в одной строке */}
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <div>
+                              <p className="text-lg font-bold text-primary">
+                                {(priceInfo.currentPrice * item.quantity).toLocaleString()} ₽
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {priceInfo.currentPrice.toLocaleString()} ₽ за шт.
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <label className="text-xs font-medium">Кол-во:</label>
+                              <div className="flex items-center gap-1 border rounded-md">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (item.quantity > 1) {
+                                      updateQuantity(item.product.id, item.quantity - 1);
+                                    }
+                                  }}
+                                  disabled={item.quantity <= 1}
+                                  className="h-8 w-8 p-0 hover:bg-muted disabled:opacity-50"
+                                >
+                                  <Minus className="h-3.5 w-3.5" />
+                                </Button>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={item.quantity}
+                                  onChange={(e) => {
+                                    const value = parseInt(e.target.value) || 1;
+                                    updateQuantity(item.product.id, Math.max(1, value));
+                                  }}
+                                  className="w-12 h-8 text-sm text-center border-0 focus-visible:ring-0 p-0"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateQuantity(item.product.id, item.quantity + 1);
+                                  }}
+                                  className="h-8 w-8 p-0 hover:bg-muted"
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeFromCart(item.product.id);
+                                }}
+                                className="text-destructive hover:bg-destructive hover:text-destructive-foreground h-8 w-8"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        {(() => {
-                          const priceInfo = getItemPriceInfo(item);
-                          return (
-                            <>
-                              <div className="flex items-center justify-end gap-2">
-                                <p className="text-xl font-bold text-primary">
-                                  {priceInfo.currentPrice.toLocaleString()} ₽
-                                </p>
-                              </div>
-                              <p className="text-sm text-muted-foreground">за шт.</p>
-                              <div className="mt-2">
-                                <p className={`text-lg font-semibold ${priceInfo.isWholesale ? 'text-green-600 dark:text-green-400' : ''}`}>
-                                  {(priceInfo.currentPrice * item.quantity).toLocaleString()} ₽
-                                </p>
-                                {priceInfo.economyAmount > 0 && (
-                                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                    Экономия: {priceInfo.economyAmount.toLocaleString()} ₽
-                                  </p>
-                                )}
-                              </div>
-                            </>
-                          );
-                        })()}
+
+                      {/* Десктопная версия: горизонтальная компоновка */}
+                      <div className="hidden md:flex p-4 gap-4">
+                        <div className="w-20 aspect-[3/4] flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+                          <img
+                            src={item.product.image}
+                            alt={item.product.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23ddd" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EНет фото%3C/text%3E%3C/svg%3E';
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-base mb-1.5 break-words">
+                            {item.product.name}
+                          </h3>
+                          {item.selectedColor && (
+                            <p className="text-xs text-muted-foreground mb-0.5">
+                              Цвет: {item.selectedColor}
+                            </p>
+                          )}
+                          {item.selectedSize && (
+                            <p className="text-xs text-muted-foreground mb-0.5">
+                              Размер: {item.selectedSize}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {item.product.material}
+                          </p>
+                          <div className="flex items-center gap-4 mt-2">
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <label className="text-sm font-medium">Количество:</label>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  updateQuantity(item.product.id, parseInt(e.target.value) || 0)
+                                }
+                                className="w-24 h-10 text-sm"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeFromCart(item.product.id);
+                              }}
+                              className="text-destructive hover:bg-destructive hover:text-destructive-foreground h-10 w-10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="flex items-center justify-end gap-2">
+                            <p className="text-xl font-bold text-primary">
+                              {priceInfo.currentPrice.toLocaleString()} ₽
+                            </p>
+                          </div>
+                          <p className="text-sm text-muted-foreground">за шт.</p>
+                          <div className="mt-2">
+                            <p className={`text-lg font-semibold ${priceInfo.isWholesale ? 'text-green-600 dark:text-green-400' : ''}`}>
+                              {(priceInfo.currentPrice * item.quantity).toLocaleString()} ₽
+                            </p>
+                            {priceInfo.economyAmount > 0 && (
+                              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                Экономия: {priceInfo.economyAmount.toLocaleString()} ₽
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
 
             {/* Order Summary */}
-            <div>
+            <div className="w-full">
               <CartSummary />
             </div>
           </div>
