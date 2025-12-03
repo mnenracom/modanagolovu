@@ -83,28 +83,118 @@ export const PochtaCartWidget = ({
         return;
       }
 
-      const script = document.createElement('script');
-      script.id = 'pochta-cart-widget-script';
-      script.src = 'https://widget.pochta.ru/cart/widget/widget.js';
-      script.async = true;
-      
-      script.onload = () => {
-        console.log('✅ Скрипт корзинного виджета Почты России загружен');
-        setTimeout(() => {
-          if (window.ecomStartCartWidget) {
-            initializeWidget();
-          } else {
-            setError('Функция ecomStartCartWidget не найдена после загрузки скрипта');
-            setLoading(false);
+      // Пробуем разные варианты URL скрипта
+      const scriptUrls = [
+        'https://widget.pochta.ru/cart/widget/widget.js',
+        'https://widget.pochta.ru/map/widget/widget.js', // Альтернативный URL
+        `https://widget.pochta.ru/cart/?widgetId=${widgetId}&mode=embed`, // Если виджет работает через iframe
+      ];
+
+      let currentUrlIndex = 0;
+
+      const tryLoadScript = (urlIndex: number) => {
+        if (urlIndex >= scriptUrls.length) {
+          // Если все URL не сработали, пробуем iframe
+          console.warn('Все варианты скрипта не сработали, пробуем iframe');
+          tryIframe();
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.id = 'pochta-cart-widget-script';
+        script.src = scriptUrls[urlIndex];
+        script.async = true;
+        
+        script.onload = () => {
+          console.log(`✅ Скрипт корзинного виджета загружен с URL: ${scriptUrls[urlIndex]}`);
+          setTimeout(() => {
+            if (window.ecomStartCartWidget) {
+              initializeWidget();
+            } else {
+              // Пробуем следующий URL
+              console.warn('Функция ecomStartCartWidget не найдена, пробуем следующий URL');
+              if (script.parentNode) {
+                script.parentNode.removeChild(script);
+              }
+              tryLoadScript(urlIndex + 1);
+            }
+          }, 500);
+        };
+        
+        script.onerror = () => {
+          console.warn(`❌ Ошибка загрузки скрипта с URL: ${scriptUrls[urlIndex]}`);
+          if (script.parentNode) {
+            script.parentNode.removeChild(script);
           }
-        }, 200);
+          // Пробуем следующий URL
+          tryLoadScript(urlIndex + 1);
+        };
+
+        document.head.appendChild(script);
+        scriptRef.current = script;
       };
-      
-      script.onerror = () => {
-        console.error('❌ Ошибка загрузки скрипта корзинного виджета');
-        setError('Не удалось загрузить скрипт виджета. Проверьте подключение к интернету.');
+
+      // Альтернативный способ через iframe
+      const tryIframe = () => {
+        if (!containerRef.current) return;
+
+        console.log('Пробуем загрузить виджет через iframe');
+        const iframeUrl = `https://widget.pochta.ru/cart/?widgetId=${widgetId}&cartValue=${cartValue}&cartWeight=${cartWeight}&mode=embed`;
+        
+        containerRef.current.innerHTML = `
+          <iframe 
+            id="pochta-cart-widget-iframe"
+            src="${iframeUrl}"
+            width="100%"
+            height="500"
+            style="border: none; min-height: 500px;"
+            allow="geolocation"
+          ></iframe>
+        `;
+
+        // Слушаем сообщения от iframe
+        const handleMessage = (event: MessageEvent) => {
+          if (!event.origin.includes('pochta.ru')) return;
+
+          console.log('📨 Сообщение от виджета в iframe:', event.data);
+
+          if (event.data && typeof event.data === 'object') {
+            const data = event.data;
+            
+            // Обрабатываем разные форматы данных
+            if (data.office || data.selectedOffice || data.officeId) {
+              const officeData = data.office || data.selectedOffice || data;
+              
+              if (onSelect) {
+                onSelect({
+                  office: {
+                    id: officeData.officeId || officeData.id || officeData.index || '',
+                    name: officeData.officeName || officeData.name || 'Отделение Почты России',
+                    address: officeData.address || officeData.fullAddress || '',
+                    postalCode: officeData.postalCode || officeData.index || '',
+                    index: officeData.index || officeData.postalCode || '',
+                  },
+                  cost: data.cost || data.deliveryCost || data.price || 0,
+                  deliveryTime: data.deliveryTime || data.days || '5-7',
+                });
+              }
+              
+              setSelectedData(data);
+              setLoading(false);
+            }
+          }
+        };
+
+        window.addEventListener('message', handleMessage);
+        
+        // Сохраняем обработчик для очистки
+        (window as any).__pochtaIframeHandler = handleMessage;
+
         setLoading(false);
+        setError(null);
       };
+
+      tryLoadScript(0);
 
       document.head.appendChild(script);
       scriptRef.current = script;
@@ -176,6 +266,12 @@ export const PochtaCartWidget = ({
         scriptRef.current.parentNode.removeChild(scriptRef.current);
       }
       
+      // Удаляем обработчик сообщений от iframe
+      if ((window as any).__pochtaIframeHandler) {
+        window.removeEventListener('message', (window as any).__pochtaIframeHandler);
+        delete (window as any).__pochtaIframeHandler;
+      }
+      
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
@@ -207,10 +303,15 @@ export const PochtaCartWidget = ({
                 <p><strong>Что делать:</strong></p>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
                   <li>Проверьте ID виджета в личном кабинете Почты России (otpravka.pochta.ru)</li>
-                  <li>Убедитесь, что ваш домен добавлен в белый список виджета</li>
-                  <li>Проверьте настройки корзинного виджета в разделе "Виджеты" личного кабинета</li>
+                  <li>Убедитесь, что виджет с ID {widgetId} настроен как <strong>корзинный виджет</strong>, а не карточный</li>
+                  <li>Убедитесь, что ваш домен ({window.location.hostname}) добавлен в белый список виджета</li>
+                  <li>Проверьте настройки корзинного виджета в разделе "Виджеты" → "Корзинный виджет" личного кабинета</li>
+                  <li>Убедитесь, что виджет опубликован (статус "Активен")</li>
                   <li>Если проблема сохраняется, обратитесь в поддержку: support@pochta.ru</li>
                 </ol>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Примечание: Если скрипт не загружается, виджет попытается загрузиться через iframe.
+                </p>
               </div>
             </AlertDescription>
           </Alert>
