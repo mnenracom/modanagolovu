@@ -58,3 +58,5 @@ SELECT
         ELSE '❌ Триггер не настроен - выполните fix_trigger_with_error_handling.sql'
     END AS final_status;
 
+
+

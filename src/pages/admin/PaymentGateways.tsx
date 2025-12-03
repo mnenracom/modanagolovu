@@ -163,6 +163,23 @@ export default function PaymentGateways() {
       return;
     }
 
+    // Валидация для ЮKассы
+    if (formData.code === 'yookassa') {
+      if (formData.testMode) {
+        // В тестовом режиме нужны тестовые ключи
+        if (!formData.testApiKey || !formData.testSecretKey) {
+          toast.error('Для тестового режима ЮKассы заполните тестовый Shop ID и секретный ключ');
+          return;
+        }
+      } else {
+        // В продакшн режиме нужны основные ключи
+        if (!formData.shopId || !formData.secretKey) {
+          toast.error('Для работы ЮKассы заполните ID магазина и Секретный ключ');
+          return;
+        }
+      }
+    }
+
     try {
       setSaving(true);
       if (editingGateway) {
@@ -301,7 +318,9 @@ export default function PaymentGateways() {
                         {gateway.isEnabled ? 'Включена' : 'Отключена'}
                       </Badge>
                       {gateway.testMode && (
-                        <Badge variant="outline">Тестовый режим</Badge>
+                        <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                          Тестовый режим
+                        </Badge>
                       )}
                       <Badge variant="outline">{gateway.type}</Badge>
                       <span className="text-sm text-muted-foreground">({gateway.code})</span>
@@ -320,6 +339,24 @@ export default function PaymentGateways() {
                         <span>Валюты: {gateway.currencies.join(', ')}</span>
                       )}
                     </div>
+                    {/* Статус настройки для ЮKассы */}
+                    {gateway.code === 'yookassa' && (
+                      <div className="mt-2">
+                        {gateway.testMode ? (
+                          gateway.testApiKey && gateway.testSecretKey ? (
+                            <span className="text-xs text-green-600 dark:text-green-400">✅ Тестовые ключи настроены</span>
+                          ) : (
+                            <span className="text-xs text-yellow-600 dark:text-yellow-400">⚠️ Тестовые ключи не настроены</span>
+                          )
+                        ) : (
+                          gateway.shopId && gateway.secretKey ? (
+                            <span className="text-xs text-green-600 dark:text-green-400">✅ Ключи настроены</span>
+                          ) : (
+                            <span className="text-xs text-red-600 dark:text-red-400">❌ Ключи не настроены</span>
+                          )
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Switch
@@ -447,42 +484,93 @@ export default function PaymentGateways() {
 
             <div className="border-t pt-4">
               <h4 className="font-medium mb-3">API настройки</h4>
+              
+              {/* Специальные подсказки для ЮKассы */}
+              {formData.code === 'yookassa' && (
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                    💡 Для ЮKассы нужны:
+                  </p>
+                  <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
+                    <li><strong>ID магазина (Shop ID)</strong> - обязательное поле</li>
+                    <li><strong>Секретный ключ</strong> - обязательное поле</li>
+                    <li>Получить можно в <a href="https://yookassa.ru/my" target="_blank" rel="noopener noreferrer" className="underline">личном кабинете ЮKассы</a></li>
+                  </ul>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Публичный ключ (API Key)</Label>
+                  <Label>
+                    ID магазина (Shop ID) {formData.code === 'yookassa' && <span className="text-destructive">*</span>}
+                  </Label>
                   <Input
-                    type="password"
-                    value={formData.apiKey || ''}
-                    onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                    placeholder="Ваш API ключ"
+                    value={formData.shopId || ''}
+                    onChange={(e) => setFormData({ ...formData, shopId: e.target.value })}
+                    placeholder={formData.code === 'yookassa' ? '123456' : 'ID магазина'}
                   />
+                  {formData.code === 'yookassa' && (
+                    <p className="text-xs text-muted-foreground">
+                      Находится в личном кабинете ЮKассы в разделе "Настройки"
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Секретный ключ</Label>
+                  <Label>
+                    Секретный ключ {formData.code === 'yookassa' && <span className="text-destructive">*</span>}
+                  </Label>
                   <Input
                     type="password"
                     value={formData.secretKey || ''}
                     onChange={(e) => setFormData({ ...formData, secretKey: e.target.value })}
                     placeholder="Секретный ключ"
                   />
+                  {formData.code === 'yookassa' && (
+                    <p className="text-xs text-muted-foreground">
+                      Секретный ключ из личного кабинета ЮKассы
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>ID магазина (Shop ID)</Label>
+                  <Label>Публичный ключ (API Key)</Label>
                   <Input
-                    value={formData.shopId || ''}
-                    onChange={(e) => setFormData({ ...formData, shopId: e.target.value })}
-                    placeholder="ID магазина"
+                    type="password"
+                    value={formData.apiKey || ''}
+                    onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                    placeholder="Ваш API ключ (опционально)"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Для некоторых платежных систем
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Ключ терминала</Label>
                   <Input
                     value={formData.terminalKey || ''}
                     onChange={(e) => setFormData({ ...formData, terminalKey: e.target.value })}
-                    placeholder="Ключ терминала"
+                    placeholder="Ключ терминала (опционально)"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Для некоторых платежных систем
+                  </p>
                 </div>
               </div>
+
+              {/* Валидация для ЮKассы */}
+              {formData.code === 'yookassa' && !formData.testMode && (
+                <div className="mt-3">
+                  {(!formData.shopId || !formData.secretKey) && (
+                    <div className="p-2 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded text-xs text-yellow-800 dark:text-yellow-200">
+                      ⚠️ Для работы ЮKассы необходимо заполнить ID магазина и Секретный ключ
+                    </div>
+                  )}
+                  {formData.shopId && formData.secretKey && (
+                    <div className="p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded text-xs text-green-800 dark:text-green-200">
+                      ✅ Основные настройки заполнены
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="border-t pt-4">
@@ -501,26 +589,48 @@ export default function PaymentGateways() {
                   />
                 </div>
                 {formData.testMode && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Тестовый API ключ</Label>
-                      <Input
-                        type="password"
-                        value={formData.testApiKey || ''}
-                        onChange={(e) => setFormData({ ...formData, testApiKey: e.target.value })}
-                        placeholder="Тестовый API ключ"
-                      />
+                  <>
+                    {formData.code === 'yookassa' && (
+                      <div className="p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg">
+                        <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-2">
+                          🧪 Тестовый режим ЮKассы
+                        </p>
+                        <ul className="text-xs text-amber-800 dark:text-amber-200 space-y-1 list-disc list-inside">
+                          <li>Используйте тестовые данные из <a href="https://yookassa.ru/developers/payment-acceptance/testing-and-going-live/testing" target="_blank" rel="noopener noreferrer" className="underline">документации ЮKассы</a></li>
+                          <li>Тестовый Shop ID: <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded">381764678</code></li>
+                          <li>Тестовый Secret Key можно получить в личном кабинете</li>
+                        </ul>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Тестовый Shop ID</Label>
+                        <Input
+                          value={formData.testApiKey || ''}
+                          onChange={(e) => setFormData({ ...formData, testApiKey: e.target.value })}
+                          placeholder={formData.code === 'yookassa' ? '381764678' : 'Тестовый Shop ID'}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Тестовый секретный ключ</Label>
+                        <Input
+                          type="password"
+                          value={formData.testSecretKey || ''}
+                          onChange={(e) => setFormData({ ...formData, testSecretKey: e.target.value })}
+                          placeholder="Тестовый секретный ключ"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Тестовый секретный ключ</Label>
-                      <Input
-                        type="password"
-                        value={formData.testSecretKey || ''}
-                        onChange={(e) => setFormData({ ...formData, testSecretKey: e.target.value })}
-                        placeholder="Тестовый секретный ключ"
-                      />
-                    </div>
-                  </div>
+                    {formData.code === 'yookassa' && (
+                      <div className="mt-2">
+                        {(!formData.testApiKey || !formData.testSecretKey) && (
+                          <div className="p-2 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded text-xs text-yellow-800 dark:text-yellow-200">
+                            ⚠️ Для тестового режима заполните тестовый Shop ID и секретный ключ
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -611,6 +721,7 @@ export default function PaymentGateways() {
     </div>
   );
 }
+
 
 
 

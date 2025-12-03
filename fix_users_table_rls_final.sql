@@ -58,3 +58,5 @@ ORDER BY policyname;
 -- 2. Правильно ли настроена функция (должна быть SECURITY DEFINER)
 -- 3. Включено ли подтверждение email в настройках Authentication
 
+
+

@@ -110,8 +110,20 @@ serve(async (req) => {
       }
     )
   } catch (error: any) {
+    console.error('Ошибка в функции create-yookassa-payment:', error)
+    console.error('Тип ошибки:', error.constructor?.name)
+    console.error('Сообщение:', error.message)
+    console.error('Стек ошибки:', error.stack)
+    
+    // Возвращаем детальную информацию об ошибке для отладки
+    const errorResponse = {
+      error: error.message || 'Не удалось создать платеж',
+      type: error.constructor?.name || 'UnknownError',
+      details: process.env.DENO_ENV === 'development' ? error.toString() : 'См. логи Edge Function'
+    }
+    
     return new Response(
-      JSON.stringify({ error: error.message || 'Не удалось создать платеж' }),
+      JSON.stringify(errorResponse),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

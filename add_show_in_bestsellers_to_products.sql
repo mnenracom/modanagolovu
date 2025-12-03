@@ -13,3 +13,5 @@ WHERE show_in_bestsellers = true AND in_stock = true;
 -- Комментарий к колонке
 COMMENT ON COLUMN products.show_in_bestsellers IS 'Отображать товар в секции "Хиты продаж" на главной странице';
 
+
+

@@ -31,3 +31,5 @@ CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 -- Комментарий к колонке
 COMMENT ON COLUMN orders.user_id IS 'UUID пользователя из auth.users (TEXT для совместимости)';
 
+
+

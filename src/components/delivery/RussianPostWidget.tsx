@@ -66,45 +66,78 @@ export const RussianPostWidget = ({
       console.log('📨 Получено сообщение от виджета:', {
         origin: event.origin,
         data: event.data,
-        type: typeof event.data
+        type: typeof event.data,
+        keys: event.data && typeof event.data === 'object' ? Object.keys(event.data) : 'N/A'
       });
+      
+      // Логируем полную структуру данных для отладки
+      if (event.data && typeof event.data === 'object') {
+        console.log('📋 Полная структура данных:', JSON.stringify(event.data, null, 2));
+      }
 
       // Виджет может отправлять данные в разных форматах
       if (event.data && typeof event.data === 'object') {
         const widgetData = event.data;
+        
+        // Логируем все ключи для отладки
+        const keys = Object.keys(widgetData);
+        console.log('🔑 Ключи в данных виджета:', keys);
+        console.log('📋 Полные данные:', JSON.stringify(widgetData, null, 2));
 
         // Формат 1: прямое событие выбора
-        if (widgetData.event === 'office_selected' || widgetData.event === 'selected') {
+        if (widgetData.event === 'office_selected' || widgetData.event === 'selected' || widgetData.type === 'office_selected') {
           const officeData = widgetData.data || widgetData;
-          console.log('✅ Офис выбран через postMessage:', officeData);
+          console.log('✅ Офис выбран через postMessage (формат 1):', officeData);
           if (onOfficeSelected) {
             onOfficeSelected({
-              id: officeData.id || officeData.index || officeData.postalCode || '',
-              name: officeData.name || officeData.officeName || 'Отделение Почты России',
-              address: officeData.address || officeData.fullAddress || officeData.officeAddress || '',
-              postalCode: officeData.postalCode || officeData.index || postalCode || '',
-              index: officeData.index || officeData.postalCode || '',
+              id: officeData.id || officeData.index || officeData.postalCode || officeData.postal_index || '',
+              name: officeData.name || officeData.officeName || officeData.title || 'Отделение Почты России',
+              address: officeData.address || officeData.fullAddress || officeData.officeAddress || officeData.addressString || '',
+              postalCode: officeData.postalCode || officeData.index || officeData.postal_index || postalCode || '',
+              index: officeData.index || officeData.postalCode || officeData.postal_index || '',
             });
           }
           setLoading(false);
           return;
         }
 
-        // Формат 2: данные содержат поля отделения
-        if (widgetData.id || widgetData.address || widgetData.index || widgetData.postalCode) {
-          console.log('✅ Найдены данные офиса в сообщении:', widgetData);
+        // Формат 2: данные содержат поля отделения напрямую
+        if (widgetData.id || widgetData.address || widgetData.index || widgetData.postalCode || widgetData.postal_index || widgetData.officeId) {
+          console.log('✅ Найдены данные офиса в сообщении (формат 2):', widgetData);
           if (onOfficeSelected) {
             onOfficeSelected({
-              id: widgetData.id || widgetData.index || widgetData.postalCode || '',
-              name: widgetData.name || widgetData.officeName || 'Отделение Почты России',
-              address: widgetData.address || widgetData.fullAddress || widgetData.officeAddress || '',
-              postalCode: widgetData.postalCode || widgetData.index || postalCode || '',
-              index: widgetData.index || widgetData.postalCode || '',
+              id: widgetData.id || widgetData.officeId || widgetData.index || widgetData.postalCode || widgetData.postal_index || '',
+              name: widgetData.name || widgetData.officeName || widgetData.title || 'Отделение Почты России',
+              address: widgetData.address || widgetData.fullAddress || widgetData.officeAddress || widgetData.addressString || '',
+              postalCode: widgetData.postalCode || widgetData.index || widgetData.postal_index || postalCode || '',
+              index: widgetData.index || widgetData.postalCode || widgetData.postal_index || '',
             });
           }
           setLoading(false);
           return;
         }
+        
+        // Формат 3: данные могут быть вложены в другие поля
+        if (widgetData.office || widgetData.selectedOffice || widgetData.result) {
+          const officeData = widgetData.office || widgetData.selectedOffice || widgetData.result;
+          console.log('✅ Найдены данные офиса в вложенном объекте (формат 3):', officeData);
+          if (officeData && (officeData.id || officeData.index || officeData.postalCode)) {
+            if (onOfficeSelected) {
+              onOfficeSelected({
+                id: officeData.id || officeData.index || officeData.postalCode || '',
+                name: officeData.name || officeData.officeName || 'Отделение Почты России',
+                address: officeData.address || officeData.fullAddress || officeData.officeAddress || '',
+                postalCode: officeData.postalCode || officeData.index || postalCode || '',
+                index: officeData.index || officeData.postalCode || '',
+              });
+            }
+            setLoading(false);
+            return;
+          }
+        }
+        
+        // Если ничего не подошло, но есть данные - пробуем извлечь что можем
+        console.log('⚠️ Неизвестный формат данных виджета, пробуем извлечь что можем:', widgetData);
       }
 
       // Попробуем парсить строку

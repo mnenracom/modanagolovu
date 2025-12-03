@@ -515,16 +515,20 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('Ошибка в функции russian-post-api:', error)
+    console.error('Тип ошибки:', error.constructor?.name)
+    console.error('Сообщение:', error.message)
     console.error('Стек ошибки:', error.stack)
     
     // Возвращаем детальную информацию об ошибке для отладки
+    const errorResponse = {
+      error: error.message || 'Внутренняя ошибка сервера',
+      type: error.constructor?.name || 'UnknownError',
+      // Не включаем stack в продакшн для безопасности
+      details: process.env.DENO_ENV === 'development' ? error.toString() : 'См. логи Edge Function'
+    }
+    
     return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Внутренняя ошибка сервера',
-        details: error.toString(),
-        stack: error.stack,
-        type: error.constructor?.name || 'UnknownError'
-      }),
+      JSON.stringify(errorResponse),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

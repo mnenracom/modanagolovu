@@ -52,3 +52,5 @@ ALTER TABLE user_carts DISABLE ROW LEVEL SECURITY;
 --   ON user_carts FOR INSERT
 --   WITH CHECK (auth.uid()::text = user_id);
 
+
+

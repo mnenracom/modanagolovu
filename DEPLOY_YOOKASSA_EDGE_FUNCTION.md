@@ -76,3 +76,5 @@ https://vielcegrqrgkhsvudrga.supabase.co/functions/v1/create-yookassa-payment
 - Функция будет доступна по адресу: `https://ваш-project-ref.supabase.co/functions/v1/create-yookassa-payment`
 - Клиентский код уже обновлен для использования этой функции
 
+
+

@@ -81,3 +81,5 @@ https://vielcegrqrgkhsvudrga.supabase.co/functions/v1/create-yookassa-payment
 
 **После развертывания попробуйте оформить заказ с онлайн-оплатой!** 🎉
 
+
+
