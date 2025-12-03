@@ -61,7 +61,7 @@ async function makePostApiRequest(
   // 2. X-User-Authorization: Basic <base64(login:password)> - ключ авторизации пользователя
   // Согласно документации: https://otpravka.pochta.ru/help
   const headers: Record<string, string> = {
-    'Authorization': `AccessToken ${apiToken || apiKey}`, // Токен авторизации приложения
+    'Authorization': `AccessToken ${apiToken}`, // Токен авторизации приложения
     'Content-Type': 'application/json',
     'Accept': 'application/json',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -76,8 +76,8 @@ async function makePostApiRequest(
   }
   
   console.log('Заголовки запроса:', {
-    hasAuthKey: !!apiKey,
-    hasToken: !!(apiToken || apiKey),
+    hasToken: !!apiToken,
+    hasUserAuth: !!userAuthKey,
     endpoint: endpoint,
     method: method
   })

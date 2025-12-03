@@ -84,11 +84,14 @@ export const russianPostService = {
       }
 
       // Используем ТОЛЬКО Edge Function
+      // Согласно документации API Почты России:
+      // - apiToken - это токен авторизации приложения (AccessToken)
+      // - userAuth - это base64(login:password) для X-User-Authorization (опционально)
       const { data, error } = await supabase.functions.invoke('russian-post-api', {
         body: {
           action: 'search_post_offices',
-          apiKey,
-          apiToken,
+          apiToken: apiToken || apiKey, // Токен авторизации приложения (обязателен)
+          apiKey: apiKey, // Для обратной совместимости
           address: {
             city: address.city,
             region: address.region,
