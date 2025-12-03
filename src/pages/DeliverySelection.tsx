@@ -158,25 +158,26 @@ const DeliverySelection = () => {
     
     console.log('📮 Преобразовано в PostOffice:', postOffice);
     
-    // Вызываем обработчик выбора отделения
-    handleSelectOffice(postOffice);
+    // Устанавливаем выбранное отделение
+    setSelectedOffice(postOffice);
+    
+    // Автоматически рассчитываем доставку
+    calculateDeliveryForOffice(postOffice);
+    
     toast.success('Отделение выбрано через виджет');
   };
 
-  // Выбор точки выдачи и расчет стоимости
-  const handleSelectOffice = async (office: PostOffice) => {
-    console.log('📮 Выбрано отделение:', office);
-    setSelectedOffice(office);
+  // Расчет доставки для выбранного отделения
+  const calculateDeliveryForOffice = async (office: PostOffice) => {
     setCalculating(true);
     
     try {
-      // Рассчитываем общий вес заказа (примерно, можно улучшить)
+      // Рассчитываем общий вес заказа
       const totalWeight = items.reduce((sum, item) => {
-        // Предполагаем средний вес товара 100г
-        return sum + (item.quantity * 100);
+        return sum + (item.quantity * 100); // Примерно 100г на товар
       }, 0);
 
-      // Извлекаем почтовый индекс из адреса или используем переданный
+      // Извлекаем почтовый индекс
       const postalCode = office.address.match(/\d{6}/)?.[0] || 
                         (office as any).postalCode || 
                         (office as any).index || 
@@ -190,8 +191,11 @@ const DeliverySelection = () => {
         value: getTotalPrice()
       });
 
+      let calculation: DeliveryCalculation | null = null;
+
+      // Пробуем API
       try {
-        const calculation = await russianPostService.calculateDelivery(
+        calculation = await russianPostService.calculateDelivery(
           senderAddress,
           {
             city: addressData.city,
@@ -201,34 +205,51 @@ const DeliverySelection = () => {
           getTotalPrice()
         );
 
-        console.log('✅ Расчет доставки успешен:', calculation);
-        setDeliveryCalculation(calculation);
-        toast.success(`Стоимость доставки: ${calculation.cost} ₽, срок: ${calculation.deliveryTime} дней`);
+        console.log('✅ Расчет доставки через API успешен:', calculation);
       } catch (apiError: any) {
-        console.warn('⚠️ API расчета недоступен, используем примерную стоимость:', apiError);
-        // Если API не работает, используем примерную стоимость
-        // Это нормально, так как виджет уже выбрал отделение
-        setDeliveryCalculation({
-          cost: 300, // Примерная стоимость доставки Почтой России
+        console.warn('⚠️ API расчета недоступен, используем fallback:', apiError);
+        // Используем fallback стоимость
+        calculation = {
+          cost: 300, // Примерная стоимость доставки
           deliveryTime: '5-7',
           type: 'standard',
-          description: 'Стандартная доставка Почтой России',
-        });
-        toast.info('Используется примерная стоимость доставки. Точная стоимость будет рассчитана при оформлении заказа.');
+          description: 'Стандартная доставка Почтой России (примерная стоимость)',
+        };
+      }
+
+      if (calculation) {
+        setDeliveryCalculation(calculation);
+        toast.success(`Стоимость доставки: ${calculation.cost} ₽, срок: ${calculation.deliveryTime} дней`);
+        
+        // Прокручиваем к кнопке оплаты
+        setTimeout(() => {
+          const paymentButton = document.getElementById('payment-button') || 
+                               document.querySelector('[data-payment-button]');
+          if (paymentButton) {
+            paymentButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 500);
       }
     } catch (error: any) {
-      console.error('❌ Ошибка при обработке выбора отделения:', error);
-      // Даже при ошибке устанавливаем примерную стоимость, чтобы пользователь мог продолжить
+      console.error('❌ Ошибка при расчете доставки:', error);
+      // Даже при ошибке устанавливаем fallback стоимость
       setDeliveryCalculation({
         cost: 300,
         deliveryTime: '5-7',
         type: 'standard',
         description: 'Стандартная доставка Почтой России',
       });
-      toast.warning('Не удалось рассчитать точную стоимость. Используется примерная стоимость доставки.');
+      toast.warning('Используется примерная стоимость доставки');
     } finally {
       setCalculating(false);
     }
+  };
+
+  // Выбор точки выдачи и расчет стоимости (для списка отделений через API)
+  const handleSelectOffice = async (office: PostOffice) => {
+    console.log('📮 Выбрано отделение:', office);
+    setSelectedOffice(office);
+    calculateDeliveryForOffice(office);
   };
 
   // Переход к оплате
@@ -445,6 +466,8 @@ const DeliverySelection = () => {
                       <p className="text-sm text-muted-foreground">{deliveryCalculation.description}</p>
                     )}
                     <Button 
+                      id="payment-button"
+                      data-payment-button
                       onClick={handleProceedToPayment} 
                       size="lg" 
                       className="w-full"

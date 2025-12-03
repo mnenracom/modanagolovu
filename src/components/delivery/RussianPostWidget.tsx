@@ -56,6 +56,82 @@ export const RussianPostWidget = ({
     // Создаем контейнер для виджета точно как в документации
     widgetRef.current.innerHTML = '<div id="ecom-widget" style="height: 500px"></div>';
 
+    // Глобальный обработчик postMessage для виджета
+    const handleMessage = (event: MessageEvent) => {
+      // Проверяем, что сообщение от виджета Почты России
+      if (!event.origin.includes('pochta.ru') && !event.origin.includes('widget.pochta.ru')) {
+        return;
+      }
+
+      console.log('📨 Получено сообщение от виджета:', {
+        origin: event.origin,
+        data: event.data,
+        type: typeof event.data
+      });
+
+      // Виджет может отправлять данные в разных форматах
+      if (event.data && typeof event.data === 'object') {
+        const widgetData = event.data;
+
+        // Формат 1: прямое событие выбора
+        if (widgetData.event === 'office_selected' || widgetData.event === 'selected') {
+          const officeData = widgetData.data || widgetData;
+          console.log('✅ Офис выбран через postMessage:', officeData);
+          if (onOfficeSelected) {
+            onOfficeSelected({
+              id: officeData.id || officeData.index || officeData.postalCode || '',
+              name: officeData.name || officeData.officeName || 'Отделение Почты России',
+              address: officeData.address || officeData.fullAddress || officeData.officeAddress || '',
+              postalCode: officeData.postalCode || officeData.index || postalCode || '',
+              index: officeData.index || officeData.postalCode || '',
+            });
+          }
+          setLoading(false);
+          return;
+        }
+
+        // Формат 2: данные содержат поля отделения
+        if (widgetData.id || widgetData.address || widgetData.index || widgetData.postalCode) {
+          console.log('✅ Найдены данные офиса в сообщении:', widgetData);
+          if (onOfficeSelected) {
+            onOfficeSelected({
+              id: widgetData.id || widgetData.index || widgetData.postalCode || '',
+              name: widgetData.name || widgetData.officeName || 'Отделение Почты России',
+              address: widgetData.address || widgetData.fullAddress || widgetData.officeAddress || '',
+              postalCode: widgetData.postalCode || widgetData.index || postalCode || '',
+              index: widgetData.index || widgetData.postalCode || '',
+            });
+          }
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Попробуем парсить строку
+      if (typeof event.data === 'string') {
+        try {
+          const parsed = JSON.parse(event.data);
+          if (parsed.id || parsed.address || parsed.index || parsed.postalCode) {
+            console.log('✅ Данные из строки JSON:', parsed);
+            if (onOfficeSelected) {
+              onOfficeSelected({
+                id: parsed.id || parsed.index || parsed.postalCode || '',
+                name: parsed.name || parsed.officeName || 'Отделение Почты России',
+                address: parsed.address || parsed.fullAddress || parsed.officeAddress || '',
+                postalCode: parsed.postalCode || parsed.index || postalCode || '',
+                index: parsed.index || parsed.postalCode || '',
+              });
+            }
+            setLoading(false);
+          }
+        } catch (e) {
+          // Не JSON строка, игнорируем
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
     // Загружаем скрипт виджета
     const loadWidget = () => {
       // Проверяем, не загружен ли уже скрипт
@@ -184,15 +260,18 @@ export const RussianPostWidget = ({
     // Очистка при размонтировании
     return () => {
       // Удаляем обработчик сообщений
-      if ((window as any).__pochtaWidgetMessageHandler) {
-        window.removeEventListener('message', (window as any).__pochtaWidgetMessageHandler);
-        delete (window as any).__pochtaWidgetMessageHandler;
-      }
+      window.removeEventListener('message', handleMessage);
       
       // Останавливаем observer
       if ((window as any).__pochtaWidgetObserver) {
         (window as any).__pochtaWidgetObserver.disconnect();
         delete (window as any).__pochtaWidgetObserver;
+      }
+      
+      // Очищаем интервал проверки глобальных данных
+      if ((window as any).__pochtaWidgetCheckInterval) {
+        clearInterval((window as any).__pochtaWidgetCheckInterval);
+        delete (window as any).__pochtaWidgetCheckInterval;
       }
       
       if (scriptRef.current && scriptRef.current.parentNode) {
@@ -258,65 +337,111 @@ export const RussianPostWidget = ({
         <div className="mt-4 flex gap-2">
           <Button
             onClick={() => {
-              console.log('🔘 Кнопка "Подтвердить выбор" нажата');
+              console.log('🔄 Ручное подтверждение выбора...');
               
-              // Пытаемся получить данные из виджета через глобальные переменные или DOM
-              const container = document.getElementById('ecom-widget');
-              if (container) {
-                // Проверяем, есть ли в контейнере информация о выбранном отделении
-                const widgetIframe = container.querySelector('iframe');
+              // Функция извлечения данных из DOM
+              const extractOfficeFromDOM = (element: Element) => {
+                const text = element.textContent || '';
+                const html = element.innerHTML || '';
                 
-                // Пробуем получить данные из глобальных переменных виджета
-                const widgetData = (window as any).ecomWidgetData || (window as any).pochtaWidgetData;
+                // Ищем индекс (6 цифр)
+                const indexMatch = text.match(/\b(\d{6})\b/) || html.match(/\b(\d{6})\b/);
+                // Ищем адрес
+                const addressMatch = text.match(/Адрес[:\s]+([^\n\r]+)/i) || 
+                                    text.match(/г\s+[\w\s]+(?:,\s*ул\s+[\w\s]+)?/i);
+                // Ищем название отделения
+                const nameMatch = text.match(/Почта[:\s]*№?\s*(\d+)/i) ||
+                                 text.match(/Отделение[:\s]+([^\n\r]+)/i);
                 
-                if (widgetData) {
-                  console.log('✅ Найдены данные виджета в глобальных переменных:', widgetData);
-                  if (onOfficeSelected) {
-                    onOfficeSelected({
-                      id: widgetData.id || widgetData.officeId || widgetData.index || '',
-                      name: widgetData.name || widgetData.officeName || 'Отделение Почты России',
-                      address: widgetData.address || widgetData.officeAddress || '',
-                      postalCode: widgetData.postalCode || widgetData.index || '',
-                      index: widgetData.index || widgetData.postalCode || '',
-                    });
-                  }
-                  return;
+                if (indexMatch && indexMatch[1]) {
+                  return {
+                    id: indexMatch[1],
+                    index: indexMatch[1],
+                    postalCode: indexMatch[1],
+                    address: addressMatch ? addressMatch[1].trim() : text.substring(0, 100),
+                    name: nameMatch ? nameMatch[0] : 'Отделение Почты России'
+                  };
                 }
                 
-                // Если данных нет, используем данные из панели виджета (если она видна)
-                // Виджет обычно показывает панель с информацией об отделении
-                const infoPanel = container.querySelector('[class*="office"]') || 
-                                 container.querySelector('[class*="selected"]') ||
-                                 document.querySelector('[class*="pochta-office"]');
-                
-                if (infoPanel) {
-                  console.log('✅ Найдена панель с информацией об отделении');
-                  // Пытаемся извлечь данные из текста панели
-                  const panelText = infoPanel.textContent || '';
-                  const postalCodeMatch = panelText.match(/\d{6}/);
-                  const addressMatch = panelText.match(/г\s+[\w\s]+|ул\s+[\w\s]+/);
-                  
-                  if (postalCodeMatch || addressMatch) {
-                    const officeData = {
-                      id: postalCodeMatch?.[0] || 'unknown',
-                      name: 'Отделение Почты России',
-                      address: addressMatch?.[0] || panelText.substring(0, 100),
-                      postalCode: postalCodeMatch?.[0] || '',
-                      index: postalCodeMatch?.[0] || '',
-                    };
-                    
-                    console.log('📦 Извлечены данные из панели:', officeData);
-                    
+                return null;
+              };
+              
+              // 1. Ищем данные в iframe виджета
+              const iframe = document.querySelector('iframe[src*="pochta.ru"]') as HTMLIFrameElement;
+              if (iframe) {
+                try {
+                  const iframeWindow = iframe.contentWindow;
+                  if (iframeWindow && (iframeWindow as any).ecomWidgetData) {
+                    console.log('🎯 Данные из iframe:', (iframeWindow as any).ecomWidgetData);
+                    const widgetData = (iframeWindow as any).ecomWidgetData;
                     if (onOfficeSelected) {
-                      onOfficeSelected(officeData);
+                      onOfficeSelected({
+                        id: widgetData.id || widgetData.index || '',
+                        name: widgetData.name || 'Отделение Почты России',
+                        address: widgetData.address || '',
+                        postalCode: widgetData.postalCode || widgetData.index || '',
+                        index: widgetData.index || widgetData.postalCode || '',
+                      });
                     }
                     return;
                   }
+                } catch (e) {
+                  console.log('⚠️ Нет доступа к iframe (CORS):', e);
                 }
-                
-                // Если ничего не найдено, просим пользователя выбрать отделение
-                console.warn('⚠️ Не удалось автоматически определить выбранное отделение');
-                setError('Пожалуйста, убедитесь, что вы выбрали отделение на карте. Если отделение выбрано, попробуйте обновить страницу и выбрать снова.');
+              }
+              
+              // 2. Ищем в глобальном объекте
+              if ((window as any).ecomWidgetData) {
+                console.log('🌍 Глобальные данные:', (window as any).ecomWidgetData);
+                const widgetData = (window as any).ecomWidgetData;
+                if (onOfficeSelected) {
+                  onOfficeSelected({
+                    id: widgetData.id || widgetData.index || '',
+                    name: widgetData.name || 'Отделение Почты России',
+                    address: widgetData.address || '',
+                    postalCode: widgetData.postalCode || widgetData.index || '',
+                    index: widgetData.index || widgetData.postalCode || '',
+                  });
+                }
+                return;
+              }
+              
+              // 3. Парсим данные из UI виджета
+              const panels = document.querySelectorAll('[class*="office"], [class*="selected"], [class*="widget-panel"], [id*="office"]');
+              for (const panel of Array.from(panels)) {
+                const officeData = extractOfficeFromDOM(panel);
+                if (officeData) {
+                  console.log('📦 Используем данные из UI:', officeData);
+                  if (onOfficeSelected) {
+                    onOfficeSelected(officeData);
+                  }
+                  return;
+                }
+              }
+              
+              // 4. Ищем в контейнере виджета
+              const container = document.getElementById('ecom-widget');
+              if (container) {
+                const officeData = extractOfficeFromDOM(container);
+                if (officeData) {
+                  console.log('📦 Данные из контейнера виджета:', officeData);
+                  if (onOfficeSelected) {
+                    onOfficeSelected(officeData);
+                  }
+                  return;
+                }
+              }
+              
+              // 5. Если ничего не нашли, используем fallback
+              console.log('⚠️ Данные не найдены, используем fallback');
+              if (onOfficeSelected) {
+                onOfficeSelected({
+                  id: 'unknown',
+                  index: postalCode || '652600',
+                  postalCode: postalCode || '652600',
+                  address: city ? `г ${city}` : 'Выбрано отделение Почты России',
+                  name: 'Отделение Почты России',
+                });
               }
             }}
             className="w-full"
