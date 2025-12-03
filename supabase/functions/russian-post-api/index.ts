@@ -97,6 +97,11 @@ async function makePostApiRequest(
       const errorText = await response.text()
       console.error(`Ошибка API: ${response.status}`, errorText.substring(0, 500))
       
+      // Специальная обработка ошибки 407 (неправильный endpoint или метод)
+      if (response.status === 407) {
+        throw new Error('Ошибка 407: Неправильный endpoint или метод API. Возможно, API Почты России изменился. Проверьте актуальную документацию: https://otpravka.pochta.ru/specification')
+      }
+      
       // Специальная обработка ошибки 417 (блокировка)
       if (response.status === 417) {
         throw new Error('API Почты России заблокировал запрос. Возможные причины: IP-адрес заблокирован, требуется настройка белого списка IP в личном кабинете Почты России, или неправильная авторизация.')
