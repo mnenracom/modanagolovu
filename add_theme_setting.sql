@@ -14,3 +14,4 @@ SELECT key, value, description, updated_at
 FROM settings 
 WHERE key = 'active_theme';
 
+

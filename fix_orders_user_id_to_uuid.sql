@@ -33,3 +33,4 @@ COMMENT ON COLUMN orders.user_id IS 'UUID пользователя из auth.use
 
 
 
+

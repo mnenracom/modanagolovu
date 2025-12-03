@@ -15,3 +15,4 @@ COMMENT ON COLUMN products.show_in_bestsellers IS 'Отображать това
 
 
 
+

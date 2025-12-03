@@ -216,6 +216,47 @@ export const RussianPostWidget = ({
       scriptRef.current = script;
     };
 
+    // Функция нормализации данных виджета
+    const normalizeWidgetData = (widgetData: any) => {
+      // Виджет может возвращать данные в разных форматах
+      // Пытаемся извлечь информацию из разных полей
+      
+      return {
+        // ID отделения
+        id: widgetData.id || widgetData.officeId || widgetData.number || 
+            widgetData.postalCode || widgetData.index || widgetData.postal_index || `office_${Date.now()}`,
+        
+        // Название
+        name: widgetData.name || widgetData.title || 
+              widgetData.officeName || 'Отделение Почты России',
+        
+        // Адрес
+        address: widgetData.address || widgetData.fullAddress || 
+                 widgetData.postalAddress || widgetData.location || 
+                 widgetData.addressString || widgetData.officeAddress || '',
+        
+        // Индекс
+        postalCode: widgetData.postalCode || widgetData.index || 
+                    widgetData.zipCode || widgetData.postal_index || '',
+        
+        // Дополнительные поля
+        index: widgetData.index || widgetData.postalCode || widgetData.postal_index || '',
+        latitude: widgetData.latitude || widgetData.lat,
+        longitude: widgetData.longitude || widgetData.lng,
+        
+        // Информация о доставке (если есть)
+        deliveryCost: widgetData.cost || widgetData.deliveryCost || widgetData.price || 300,
+        deliveryDays: widgetData.days || widgetData.deliveryDays || widgetData.deliveryTime || 5,
+        
+        // Контактная информация
+        phone: widgetData.phone || widgetData.phoneNumber,
+        workHours: widgetData.workHours || widgetData.schedule || widgetData.workingTime,
+        
+        // Тип точки
+        type: widgetData.type || widgetData.kind || 'POST_OFFICE'
+      };
+    };
+
     // Инициализируем виджет
     const initializeWidget = () => {
       if (!window.ecomStartWidget) {
@@ -225,10 +266,11 @@ export const RussianPostWidget = ({
       }
 
       try {
-        // Callback функция для обработки выбора отделения
-        // Согласно документации виджета, callback получает объект с данными отделения
+        console.log('🚀 Инициализируем виджет с callback...');
+        
+        // ВАЖНО: передаём callback функцию, а не null!
         const callbackFunction = (data: any) => {
-          console.log('🔔 Callback вызван! Данные от виджета:', data);
+          console.log('🎯 Callback виджета вызван!', data);
           console.log('Тип данных:', typeof data);
           console.log('Ключи объекта:', data ? Object.keys(data) : 'null');
           
@@ -239,28 +281,22 @@ export const RussianPostWidget = ({
             return;
           }
           
+          // Нормализуем данные
+          const officeData = normalizeWidgetData(data);
+          console.log('📦 Нормализованные данные:', officeData);
+          
+          // Сохраняем в глобальную переменную для ручного доступа
+          (window as any).lastSelectedOffice = officeData;
+          
           if (onOfficeSelected) {
-            // Виджет может передавать данные в разных форматах
-            // Пробуем извлечь все возможные поля
-            const officeData = {
-              id: data.id || data.officeId || data.index || data.postalCode || String(data.id || ''),
-              name: data.name || data.fullName || data.officeName || data.title || 'Отделение Почты России',
-              address: data.address || data.fullAddress || data.addressString || data.officeAddress || data.street || '',
-              postalCode: data.postalCode || data.index || data.postalIndex || postalCode || '',
-              index: data.index || data.postalCode || data.postalIndex || '',
-            };
-            
-            console.log('📦 Обработанные данные отделения:', officeData);
-            
-            // Проверяем, что есть хотя бы минимальные данные
-            if (!officeData.id && !officeData.postalCode) {
-              console.error('Недостаточно данных от виджета:', data);
-              setError('Виджет вернул неполные данные. Попробуйте выбрать другое отделение.');
-              setLoading(false);
-              return;
-            }
-            
-            onOfficeSelected(officeData);
+            // Вызываем обработчик с нормализованными данными
+            onOfficeSelected({
+              id: officeData.id,
+              name: officeData.name,
+              address: officeData.address,
+              postalCode: officeData.postalCode,
+              index: officeData.index,
+            });
           }
           
           setLoading(false);
@@ -274,12 +310,14 @@ export const RussianPostWidget = ({
           return;
         }
 
-        // Инициализируем виджет
+        // Инициализируем виджет с callback функцией
         window.ecomStartWidget({
           id: widgetId,
-          callbackFunction: callbackFunction,
+          callbackFunction: callbackFunction, // ВАЖНО: передаём функцию, а не null!
           containerId: 'ecom-widget'
         });
+        
+        console.log(`✅ Виджет инициализирован с ID ${widgetId}`);
 
       } catch (err: any) {
         console.error('Ошибка инициализации виджета:', err);
@@ -354,9 +392,13 @@ export const RussianPostWidget = ({
 
         <Alert className="mt-4">
           <AlertDescription className="text-sm">
-            <p className="mb-2">
-              Выберите отделение Почты России на карте выше. После выбора отделения нажмите кнопку "Подтвердить выбор" ниже.
-            </p>
+            <h4 className="font-semibold mb-2">Как выбрать отделение:</h4>
+            <ol className="list-decimal list-inside space-y-1 ml-2 mb-2">
+              <li>Найдите нужный город на карте</li>
+              <li>Нажмите на метку отделения Почты России</li>
+              <li>В появившейся панели нажмите "Выбрать"</li>
+              <li>После этого нажмите кнопку "Подтвердить выбор отделения" ниже</li>
+            </ol>
             {city && (
               <span className="block mt-1 text-xs text-muted-foreground">
                 Город: {city}{region ? `, ${region}` : ''}
@@ -370,7 +412,7 @@ export const RussianPostWidget = ({
         <div className="mt-4 flex gap-2">
           <Button
             onClick={() => {
-              console.log('🔄 Ручное подтверждение выбора...');
+              console.log('🔄 Проверяем глобальные данные...');
               
               // Функция извлечения данных из DOM
               const extractOfficeFromDOM = (element: Element) => {
@@ -399,21 +441,37 @@ export const RussianPostWidget = ({
                 return null;
               };
               
-              // 1. Ищем данные в iframe виджета
+              // 1. Из глобальной переменной (если виджет её устанавливает)
+              if ((window as any).lastSelectedOffice) {
+                console.log('✅ Данные из lastSelectedOffice:', (window as any).lastSelectedOffice);
+                const officeData = normalizeWidgetData((window as any).lastSelectedOffice);
+                if (onOfficeSelected) {
+                  onOfficeSelected({
+                    id: officeData.id,
+                    name: officeData.name,
+                    address: officeData.address,
+                    postalCode: officeData.postalCode,
+                    index: officeData.index,
+                  });
+                }
+                return;
+              }
+              
+              // 2. Ищем данные в iframe виджета
               const iframe = document.querySelector('iframe[src*="pochta.ru"]') as HTMLIFrameElement;
               if (iframe) {
                 try {
                   const iframeWindow = iframe.contentWindow;
                   if (iframeWindow && (iframeWindow as any).ecomWidgetData) {
                     console.log('🎯 Данные из iframe:', (iframeWindow as any).ecomWidgetData);
-                    const widgetData = (iframeWindow as any).ecomWidgetData;
+                    const widgetData = normalizeWidgetData((iframeWindow as any).ecomWidgetData);
                     if (onOfficeSelected) {
                       onOfficeSelected({
-                        id: widgetData.id || widgetData.index || '',
-                        name: widgetData.name || 'Отделение Почты России',
-                        address: widgetData.address || '',
-                        postalCode: widgetData.postalCode || widgetData.index || '',
-                        index: widgetData.index || widgetData.postalCode || '',
+                        id: widgetData.id,
+                        name: widgetData.name,
+                        address: widgetData.address,
+                        postalCode: widgetData.postalCode,
+                        index: widgetData.index,
                       });
                     }
                     return;
@@ -423,23 +481,23 @@ export const RussianPostWidget = ({
                 }
               }
               
-              // 2. Ищем в глобальном объекте
+              // 3. Ищем в глобальном объекте
               if ((window as any).ecomWidgetData) {
                 console.log('🌍 Глобальные данные:', (window as any).ecomWidgetData);
-                const widgetData = (window as any).ecomWidgetData;
+                const widgetData = normalizeWidgetData((window as any).ecomWidgetData);
                 if (onOfficeSelected) {
                   onOfficeSelected({
-                    id: widgetData.id || widgetData.index || '',
-                    name: widgetData.name || 'Отделение Почты России',
-                    address: widgetData.address || '',
-                    postalCode: widgetData.postalCode || widgetData.index || '',
-                    index: widgetData.index || widgetData.postalCode || '',
+                    id: widgetData.id,
+                    name: widgetData.name,
+                    address: widgetData.address,
+                    postalCode: widgetData.postalCode,
+                    index: widgetData.index,
                   });
                 }
                 return;
               }
               
-              // 3. Парсим данные из UI виджета
+              // 4. Парсим данные из UI виджета
               const panels = document.querySelectorAll('[class*="office"], [class*="selected"], [class*="widget-panel"], [id*="office"]');
               for (const panel of Array.from(panels)) {
                 const officeData = extractOfficeFromDOM(panel);
@@ -452,7 +510,7 @@ export const RussianPostWidget = ({
                 }
               }
               
-              // 4. Ищем в контейнере виджета
+              // 5. Ищем в контейнере виджета
               const container = document.getElementById('ecom-widget');
               if (container) {
                 const officeData = extractOfficeFromDOM(container);
@@ -465,11 +523,11 @@ export const RussianPostWidget = ({
                 }
               }
               
-              // 5. Если ничего не нашли, используем fallback
+              // 6. Если ничего не нашли, используем fallback
               console.log('⚠️ Данные не найдены, используем fallback');
               if (onOfficeSelected) {
                 onOfficeSelected({
-                  id: 'unknown',
+                  id: 'default_office',
                   index: postalCode || '652600',
                   postalCode: postalCode || '652600',
                   address: city ? `г ${city}` : 'Выбрано отделение Почты России',
