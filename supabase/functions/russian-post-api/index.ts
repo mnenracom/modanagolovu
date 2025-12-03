@@ -628,22 +628,27 @@ serve(async (req) => {
         console.log('🔍 from.index:', (from as any).index)
         console.log('🔍 to.index:', (to as any).index)
         
-        // Получаем индексы (должны быть строками)
-        // Пробуем разные варианты полей для индекса отправителя
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Надежное извлечение индексов из разных возможных полей
+        // Пробуем все возможные варианты полей для индекса отправителя
         const indexFrom = String(
           from.postalCode || 
           (from as any).index || 
           (from as any).postal_code ||
-          '101000' // Fallback на Москву
+          (from as any).id ||
+          (from as any).postalCode || // Дополнительная проверка
+          '101000' // Fallback на Москву (только если индекс не указан)
         )
         
         // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Получаем индекс получателя из правильного объекта `to`
-        // Пробуем разные варианты полей для индекса получателя
+        // Пробуем все возможные варианты полей для индекса получателя
+        // ВАЖНО: Используем объект `to`, а не `from`!
         const indexTo = String(
           to.postalCode || 
           (to as any).index || 
           (to as any).postal_code ||
+          (to as any).id ||
           (to as any).postalCode || // Дополнительная проверка
+          (to as any).postal || // Еще один вариант
           '101000' // Fallback на Москву (только если индекс не указан)
         )
         
@@ -837,16 +842,29 @@ serve(async (req) => {
         // Вариант 1: POST /postoffice/1.0/objects с массивом ID в теле (ПРИОРИТЕТНЫЙ!)
         try {
           console.log(`🚀 ПРИОРИТЕТ: POST /postoffice/1.0/objects с телом [${officeId}]`)
-          const requestBody = [officeId] // Массив с одним индексом
+          
+          // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Убеждаемся, что officeId - это строка (индекс)
+          const officeIdString = String(officeId).trim()
+          if (!officeIdString || officeIdString.length !== 6 || !/^\d{6}$/.test(officeIdString)) {
+            throw new Error(`Некорректный индекс отделения: ${officeIdString}. Ожидается 6 цифр.`)
+          }
+          
+          const requestBody = [officeIdString] // Массив с одним индексом (строка из 6 цифр)
           console.log(`📄 Тело запроса (JSON):`, JSON.stringify(requestBody))
           console.log(`📄 Тело запроса (объект):`, requestBody)
+          console.log(`📄 Проверка формата officeId:`, {
+            original: officeId,
+            stringified: officeIdString,
+            length: officeIdString.length,
+            isNumeric: /^\d{6}$/.test(officeIdString)
+          })
           
-          // Выполняем запрос напрямую для детального логирования
-          const postUrl = `${POST_API_BASE_URL}/postoffice/1.0/objects`
-          console.log(`➡️ Отправка POST запроса к API: ${postUrl}`)
+          // Выполняем запрос через makePostApiRequest (уже настроен Content-Type)
+          console.log(`➡️ Отправка POST запроса к API: ${POST_API_BASE_URL}/postoffice/1.0/objects`)
           console.log(`📋 Метод: POST`)
           console.log(`📋 Endpoint: /postoffice/1.0/objects`)
           console.log(`📋 Тело запроса:`, JSON.stringify(requestBody, null, 2))
+          console.log(`📋 Content-Type будет установлен автоматически в makePostApiRequest`)
           
           officeResponse = await makePostApiRequest(
             `/postoffice/1.0/objects`,
@@ -865,20 +883,16 @@ serve(async (req) => {
             console.log(`📊 Размер массива: ${officeResponse.length} элементов`)
             if (officeResponse.length > 0) {
               console.log(`📦 Первый элемент массива:`, JSON.stringify(officeResponse[0], null, 2))
-            }
-          }
-          
-          // Если ответ - массив, берем первый элемент
-          if (Array.isArray(officeResponse)) {
-            console.log(`📊 Получен массив из ${officeResponse.length} элементов`)
-            if (officeResponse.length > 0) {
+              // Используем первый элемент массива
               officeResponse = officeResponse[0]
               console.log(`✅ Используем первый элемент массива`)
             } else {
-              throw new Error('Массив ответа пуст')
+              throw new Error('Массив ответа пуст - отделение не найдено')
             }
-          } else {
+          } else if (officeResponse && typeof officeResponse === 'object') {
             console.log(`📦 Ответ - объект, используем как есть`)
+          } else {
+            throw new Error(`Неожиданный формат ответа: ${typeof officeResponse}`)
           }
         } catch (error1: any) {
           console.warn(`⚠️ Вариант 1 (POST /postoffice/1.0/objects) не сработал:`, {

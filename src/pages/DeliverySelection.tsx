@@ -212,19 +212,42 @@ const DeliverySelection = () => {
         return sum + (item.quantity * 100); // Примерно 100г на товар
       }, 0);
 
-      // Извлекаем почтовый индекс
-      const postalCode = office.address.match(/\d{6}/)?.[0] || 
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Надежное извлечение почтового индекса
+      // Пробуем все возможные варианты полей
+      const postalCode = office.id?.match(/^\d{6}$/)?.[0] || // ID может быть индексом
+                        office.address?.match(/\d{6}/)?.[0] || // Извлекаем из адреса
                         (office as any).postalCode || 
                         (office as any).index || 
+                        (office as any).postal_code ||
                         addressData.postalCode || 
                         '';
 
       console.log('📊 Параметры расчета доставки:', {
         from: senderAddress,
-        to: { city: addressData.city, postalCode },
+        to: { 
+          city: addressData.city, 
+          postalCode: postalCode,
+          // Дополнительные поля для отладки
+          officeId: office.id,
+          officeAddress: office.address,
+          officeIndex: (office as any).index
+        },
         weight: totalWeight,
         value: getTotalPrice()
       });
+
+      // КРИТИЧЕСКАЯ ПРОВЕРКА: Убеждаемся, что индекс получен
+      if (!postalCode || postalCode.length !== 6 || !/^\d{6}$/.test(postalCode)) {
+        console.error('❌ ОШИБКА: Не удалось извлечь корректный почтовый индекс!', {
+          officeId: office.id,
+          officeAddress: office.address,
+          extractedPostalCode: postalCode,
+          officeObject: office
+        });
+        toast.error('Не удалось определить почтовый индекс отделения. Пожалуйста, выберите другое отделение или укажите индекс вручную.');
+        setCalculating(false);
+        return;
+      }
 
       let calculation: DeliveryCalculation | null = null;
 
@@ -233,7 +256,7 @@ const DeliverySelection = () => {
         senderAddress,
         {
           city: addressData.city,
-          postalCode: postalCode,
+          postalCode: postalCode, // КРИТИЧЕСКИ ВАЖНО: Передаем извлеченный индекс
         },
         totalWeight,
         getTotalPrice()
