@@ -47,8 +47,8 @@ async function getAccessToken(apiKey: string): Promise<string> {
  */
 async function makePostApiRequest(
   endpoint: string,
-  apiKey: string,
-  apiToken: string | null,
+  apiToken: string, // Токен авторизации приложения (AccessToken)
+  userAuthKey: string | null, // Ключ авторизации пользователя base64(login:password) для X-User-Authorization
   method: 'GET' | 'POST' = 'GET',
   body?: any
 ): Promise<any> {
@@ -56,16 +56,23 @@ async function makePostApiRequest(
   
   console.log(`Запрос к API Почты России: ${method} ${url}`)
   
-  // Для API Почты России используется Authorization-Key и AccessToken
+  // Для API Почты России используется два заголовка авторизации:
+  // 1. Authorization: AccessToken <токен_приложения> - токен авторизации приложения
+  // 2. X-User-Authorization: Basic <base64(login:password)> - ключ авторизации пользователя
   // Согласно документации: https://otpravka.pochta.ru/help
   const headers: Record<string, string> = {
-    'Authorization': `AccessToken ${apiToken || apiKey}`,
-    'Authorization-Key': apiKey,
+    'Authorization': `AccessToken ${apiToken || apiKey}`, // Токен авторизации приложения
     'Content-Type': 'application/json',
     'Accept': 'application/json',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
     'Connection': 'keep-alive',
+  }
+  
+  // Добавляем X-User-Authorization если передан userAuthKey
+  // userAuthKey должен быть base64(login:password) согласно документации
+  if (userAuthKey) {
+    headers['X-User-Authorization'] = `Basic ${userAuthKey}`
   }
   
   console.log('Заголовки запроса:', {
@@ -152,11 +159,12 @@ serve(async (req) => {
   }
 
   try {
-    const { action, apiKey, apiToken, address, from, to, weight, declaredValue, officeId } = await req.json()
+    const { action, apiKey, apiToken, userAuth, address, from, to, weight, declaredValue, officeId } = await req.json()
 
-    if (!apiKey) {
+    // Токен авторизации приложения обязателен
+    if (!apiToken && !apiKey) {
       return new Response(
-        JSON.stringify({ error: 'API ключ (Authorization-Key) не предоставлен' }),
+        JSON.stringify({ error: 'Токен авторизации приложения (AccessToken) не предоставлен. Укажите apiToken или apiKey.' }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -164,8 +172,13 @@ serve(async (req) => {
       )
     }
 
-    // API Token может быть опциональным - если не передан, получим через OAuth
-    const token = apiToken || null
+    // API Token - это токен авторизации приложения (AccessToken)
+    // Если не передан apiToken, используем apiKey как токен (для обратной совместимости)
+    const token = apiToken || apiKey
+    
+    // userAuth - это base64(login:password) для заголовка X-User-Authorization
+    // Если не передан, используем apiKey (если он похож на base64)
+    const userAuthKey = userAuth || (apiKey && apiKey.length > 20 ? apiKey : null)
 
     // Поиск точек выдачи
     if (action === 'search_post_offices') {
@@ -198,8 +211,8 @@ serve(async (req) => {
         // Пробуем найти отделения через актуальный API endpoint
         const officesResponse = await makePostApiRequest(
           '/postoffice/1.0/',
-          apiKey,
           token,
+          userAuthKey,
           'POST',
           searchRequest
         )
@@ -356,8 +369,8 @@ serve(async (req) => {
 
         const tariffResponse = await makePostApiRequest(
           '/tariff/1.0/calculate',
-          apiKey,
           token,
+          userAuthKey,
           'POST',
           tariffRequest
         )
