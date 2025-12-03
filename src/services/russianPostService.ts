@@ -205,11 +205,37 @@ export const russianPostService = {
         throw new Error('API не вернул стоимость доставки');
       }
 
+      // Убеждаемся, что стоимость - это число (Edge Function уже конвертирует из копеек в рубли)
+      const cost = typeof data.cost === 'number' ? Math.ceil(data.cost) : parseInt(String(data.cost || 0), 10);
+      
+      // Форматируем срок доставки
+      let deliveryTime = '5-7';
+      if (data.deliveryTime) {
+        // Если это строка вида "5-7" или "5-7 дней", оставляем как есть
+        if (typeof data.deliveryTime === 'string') {
+          deliveryTime = data.deliveryTime.replace(/дней?|дн\.?/gi, '').trim() || '5-7';
+        } else if (typeof data.deliveryTime === 'object') {
+          // Если это объект с min и max
+          const min = data.deliveryTime.min || 5;
+          const max = data.deliveryTime.max || 7;
+          deliveryTime = `${min}-${max}`;
+        }
+      } else if (data.days) {
+        // Альтернативный формат
+        if (typeof data.days === 'object') {
+          const min = data.days.min || 5;
+          const max = data.days.max || 7;
+          deliveryTime = `${min}-${max}`;
+        } else {
+          deliveryTime = String(data.days);
+        }
+      }
+
       return {
-        cost: data.cost,
-        deliveryTime: data.deliveryTime || data.days || '5-7',
+        cost: cost,
+        deliveryTime: deliveryTime,
         type: data.type || 'standard',
-        description: data.description,
+        description: data.description || 'Стандартная доставка Почтой России',
       };
     } catch (error: any) {
       console.error('Ошибка расчета стоимости доставки:', error);

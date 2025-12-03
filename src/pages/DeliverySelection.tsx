@@ -221,7 +221,12 @@ const DeliverySelection = () => {
 
       if (calculation) {
         setDeliveryCalculation(calculation);
-        toast.success(`Стоимость доставки: ${calculation.cost} ₽, срок: ${calculation.deliveryTime} дней`);
+        // Форматируем стоимость и срок для уведомления
+        const formattedCost = Math.ceil(calculation.cost).toLocaleString('ru-RU');
+        const formattedTime = calculation.deliveryTime.includes('-') 
+          ? `${calculation.deliveryTime} дней`
+          : `${calculation.deliveryTime} дней`;
+        toast.success(`Стоимость доставки: ${formattedCost} ₽, срок: ${formattedTime}`);
         
         // Прокручиваем к кнопке оплаты
         setTimeout(() => {
@@ -386,7 +391,8 @@ const DeliverySelection = () => {
                         description: 'Доставка Почтой России',
                       });
                       
-                      toast.success(`Доставка выбрана: ${data.cost} ₽`);
+                             const formattedCost = Math.ceil(data.cost).toLocaleString('ru-RU');
+                             toast.success(`Доставка выбрана: ${formattedCost} ₽`);
                     }}
                   />
                   
@@ -484,16 +490,20 @@ const DeliverySelection = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Стоимость доставки:</span>
-                      <span className="text-2xl font-bold text-primary">
-                        {deliveryCalculation.cost.toLocaleString()} ₽
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Срок доставки:</span>
-                      <span className="font-semibold">{deliveryCalculation.deliveryTime} дней</span>
-                    </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Стоимость доставки:</span>
+                            <span className="text-2xl font-bold text-primary">
+                              {Math.ceil(deliveryCalculation.cost).toLocaleString('ru-RU')} ₽
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Срок доставки:</span>
+                            <span className="font-semibold">
+                              {deliveryCalculation.deliveryTime.includes('-') 
+                                ? `${deliveryCalculation.deliveryTime} дней`
+                                : `${deliveryCalculation.deliveryTime} дней`}
+                            </span>
+                          </div>
                     {deliveryCalculation.description && (
                       <p className="text-sm text-muted-foreground">{deliveryCalculation.description}</p>
                     )}
