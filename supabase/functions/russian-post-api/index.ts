@@ -193,28 +193,39 @@ serve(async (req) => {
       }
 
       try {
-        // Поиск отделений по городу через API Почты России
-        // Актуальный эндпоинт: POST /postoffice/1.0/
+        // Поиск отделений по адресу через API Почты России
+        // Актуальный эндпоинт: GET /postoffice/1.0/by-address
+        // Согласно документации: https://otpravka.pochta.ru/specification
         const cityName = address.city.trim()
         
-        // Формат запроса согласно документации API Почты России
-        const searchRequest = {
-          city: cityName,
-          region: address.region || '',
-          postalCode: address.postalCode || '',
-          top: 50, // Максимальное количество результатов
-          filter: 'ALL' // Все типы: отделения, постаматы, терминалы
+        // Формируем адрес для поиска
+        // Чем точнее адрес, тем точнее будет поиск
+        let searchAddress = cityName
+        if (address.region) {
+          searchAddress = `${address.region}, ${cityName}`
+        }
+        if (address.postalCode) {
+          searchAddress = `${searchAddress}, ${address.postalCode}`
         }
         
-        console.log('Запрос поиска отделений:', JSON.stringify(searchRequest))
+        // Параметры запроса через query string
+        const queryParams = new URLSearchParams({
+          address: searchAddress,
+          top: '50' // Количество ближайших почтовых отделений (по умолчанию 3)
+        })
+        
+        console.log('Запрос поиска отделений:', {
+          address: searchAddress,
+          top: 50
+        })
         
         // Пробуем найти отделения через актуальный API endpoint
+        // GET /postoffice/1.0/by-address?address=...&top=50
         const officesResponse = await makePostApiRequest(
-          '/postoffice/1.0/',
+          `/postoffice/1.0/by-address?${queryParams.toString()}`,
           token,
           userAuthKey,
-          'POST',
-          searchRequest
+          'GET'
         )
 
         // Преобразуем ответ API в наш формат
