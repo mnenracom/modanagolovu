@@ -142,17 +142,23 @@ const DeliverySelection = () => {
     name: string;
     address: string;
     postalCode: string;
+    index?: string;
   }) => {
+    console.log('🎯 handleWidgetOfficeSelected вызван с данными:', office);
+    
     // Преобразуем данные виджета в формат PostOffice
     const postOffice: PostOffice = {
-      id: office.id,
-      name: office.name,
-      address: office.address,
+      id: office.id || office.postalCode || office.index || 'unknown',
+      name: office.name || 'Отделение Почты России',
+      address: office.address || '',
       latitude: 0, // Виджет может не предоставлять координаты
       longitude: 0,
       type: 'post_office',
     };
     
+    console.log('📮 Преобразовано в PostOffice:', postOffice);
+    
+    // Вызываем обработчик выбора отделения
     handleSelectOffice(postOffice);
     toast.success('Отделение выбрано через виджет');
   };

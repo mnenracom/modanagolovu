@@ -182,6 +182,12 @@ export const RussianPostWidget = ({
 
     // Очистка при размонтировании
     return () => {
+      // Удаляем обработчик сообщений
+      if ((window as any).__pochtaWidgetMessageHandler) {
+        window.removeEventListener('message', (window as any).__pochtaWidgetMessageHandler);
+        delete (window as any).__pochtaWidgetMessageHandler;
+      }
+      
       if (scriptRef.current && scriptRef.current.parentNode) {
         scriptRef.current.parentNode.removeChild(scriptRef.current);
       }
