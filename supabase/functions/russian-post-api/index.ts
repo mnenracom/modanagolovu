@@ -65,8 +65,8 @@ async function makePostApiRequest(
   // Согласно документации: https://otpravka.pochta.ru/help
   const headers: Record<string, string> = {
     'Authorization': `AccessToken ${apiToken}`, // Токен авторизации приложения
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    'Content-Type': 'application/json;charset=UTF-8', // Почта России требует charset=UTF-8
+    'Accept': 'application/json;charset=UTF-8', // Почта России требует charset=UTF-8
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
     'Connection': 'keep-alive',
@@ -146,9 +146,23 @@ async function makePostApiRequest(
       console.log('Успешный ответ от API, размер данных:', JSON.stringify(data).length)
       return data
     } else {
+      // Если ответ не JSON, читаем текст для отладки
       const text = await response.text()
-      console.log('Ответ не JSON:', text.substring(0, 200))
-      throw new Error('API вернул не JSON ответ')
+      console.error('⚠️ API вернул не JSON ответ:', {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: contentType,
+        responseText: text.substring(0, 500)
+      })
+      
+      // Пытаемся распарсить как JSON, если это возможно
+      try {
+        const parsed = JSON.parse(text)
+        return parsed
+      } catch (parseError) {
+        // Если не JSON, выбрасываем ошибку с деталями
+        throw new Error(`API вернул не JSON ответ (${response.status} ${response.statusText}): ${text.substring(0, 200)}`)
+      }
     }
   } catch (error: any) {
     console.error(`Ошибка запроса к API Почты России (${endpoint}):`, {
@@ -401,18 +415,44 @@ serve(async (req) => {
       try {
         // Расчет стоимости доставки через API Почты России
         // Актуальный эндпоинт: POST /tariff/1.0/calculate
+        // Согласно документации API Почты России, формат запроса:
+        // - object: массив объектов с типом отправления
+        // - index_from: индекс отправителя (строка)
+        // - index_to: индекс получателя (строка)
+        // - weight: вес в граммах
+        // - declared_value: объявленная стоимость в копейках
+        
+        // Получаем индексы (должны быть строками)
+        const indexFrom = String(from.postalCode || '101000')
+        const indexTo = String(to.postalCode || '101000')
+        
+        // Объявленная стоимость: если передана в рублях, конвертируем в копейки
+        const declaredValueInKopecks = declaredValue ? Math.ceil(declaredValue * 100) : 0
+        
         const tariffRequest = {
-          object: 6430, // Код объекта отправления (6430 - посылка)
-          from: from.postalCode || '101000', // Почтовый индекс отправителя
-          to: to.postalCode || '101000', // Почтовый индекс получателя
+          object: [
+            {
+              id: 6430, // Код объекта отправления (6430 - посылка)
+              type: 'POSTAL_PARCEL' // Тип отправления
+            }
+          ],
+          index_from: indexFrom, // Индекс отправителя (строка!)
+          index_to: indexTo, // Индекс получателя (строка!)
           weight: Math.max(1, Math.ceil(weight)), // Вес в граммах (минимум 1)
-          declaredValue: declaredValue || 0, // Объявленная стоимость в копейках
-          mailType: 'POSTAL_PARCEL', // Тип отправления: POSTAL_PARCEL (посылка)
-          mailCategory: 'ORDINARY', // Категория: ORDINARY (обычная), REGISTERED (с объявленной ценностью)
-          payment: declaredValue ? declaredValue : 0, // Сумма наложенного платежа
+          declared_value: declaredValueInKopecks, // Объявленная стоимость в копейках
+          mail_type: 'POSTAL_PARCEL', // Тип отправления: POSTAL_PARCEL (посылка)
+          mail_category: 'ORDINARY', // Категория: ORDINARY (обычная), REGISTERED (с объявленной ценностью)
+          payment: declaredValueInKopecks, // Сумма наложенного платежа в копейках
         }
 
         console.log('Запрос расчета тарифа:', JSON.stringify(tariffRequest))
+        console.log('📊 Параметры:', {
+          from: indexFrom,
+          to: indexTo,
+          weight: weight,
+          declaredValue: declaredValue,
+          declaredValueInKopecks: declaredValueInKopecks
+        })
 
         const tariffResponse = await makePostApiRequest(
           '/tariff/1.0/calculate',
