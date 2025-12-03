@@ -43,6 +43,7 @@ async function getAccessToken(apiKey: string): Promise<string> {
 
 /**
  * Выполнить запрос к API Почты России
+ * Обрабатывает возможные проблемы с SSL/TLS сертификатами
  */
 async function makePostApiRequest(
   endpoint: string,
@@ -57,7 +58,6 @@ async function makePostApiRequest(
   
   // Для API Почты России используется Authorization-Key и AccessToken
   // Согласно документации: https://otpravka.pochta.ru/help
-  // Добавляем User-Agent и другие заголовки для обхода защиты от ботов
   const headers: Record<string, string> = {
     'Authorization': `AccessToken ${apiToken || apiKey}`,
     'Authorization-Key': apiKey,
@@ -65,16 +65,14 @@ async function makePostApiRequest(
     'Accept': 'application/json',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Accept-Encoding': 'gzip, deflate, br',
     'Connection': 'keep-alive',
-    'Referer': 'https://otpravka.pochta.ru/',
-    'Origin': 'https://otpravka.pochta.ru',
   }
   
   console.log('Заголовки запроса:', {
     hasAuthKey: !!apiKey,
     hasToken: !!(apiToken || apiKey),
-    endpoint: endpoint
+    endpoint: endpoint,
+    method: method
   })
 
   const options: RequestInit = {
@@ -84,12 +82,16 @@ async function makePostApiRequest(
 
   if (body && method === 'POST') {
     options.body = JSON.stringify(body)
+    console.log('Тело запроса:', JSON.stringify(body).substring(0, 200))
   }
 
   try {
+    // В Deno fetch может иметь проблемы с SSL, но обычно работает
+    // Если есть проблемы, они проявятся как сетевые ошибки
     const response = await fetch(url, options)
     
     console.log(`Ответ API: ${response.status} ${response.statusText}`)
+    console.log('Заголовки ответа:', Object.fromEntries(response.headers.entries()))
     
     if (!response.ok) {
       const errorText = await response.text()
@@ -100,13 +102,18 @@ async function makePostApiRequest(
         throw new Error('API Почты России заблокировал запрос. Возможные причины: IP-адрес заблокирован, требуется настройка белого списка IP в личном кабинете Почты России, или неправильная авторизация.')
       }
       
+      // Обработка ошибки SSL/TLS (если есть)
+      if (response.status === 0 || errorText.includes('certificate') || errorText.includes('SSL') || errorText.includes('TLS')) {
+        throw new Error('Проблема с SSL/TLS сертификатом API Почты России. Рекомендуется использовать прокси-сервер или обратиться в поддержку Почты России.')
+      }
+      
       throw new Error(`API Почты России вернул ошибку ${response.status}: ${errorText.substring(0, 200) || response.statusText}`)
     }
 
     const contentType = response.headers.get('content-type')
     if (contentType && contentType.includes('application/json')) {
       const data = await response.json()
-      console.log('Успешный ответ от API')
+      console.log('Успешный ответ от API, размер данных:', JSON.stringify(data).length)
       return data
     } else {
       const text = await response.text()
@@ -114,7 +121,21 @@ async function makePostApiRequest(
       throw new Error('API вернул не JSON ответ')
     }
   } catch (error: any) {
-    console.error(`Ошибка запроса к API Почты России (${endpoint}):`, error.message || error)
+    console.error(`Ошибка запроса к API Почты России (${endpoint}):`, {
+      message: error.message,
+      name: error.name,
+      stack: error.stack?.substring(0, 500)
+    })
+    
+    // Проверяем, не связана ли ошибка с SSL/TLS
+    if (error.message?.includes('certificate') || 
+        error.message?.includes('SSL') || 
+        error.message?.includes('TLS') ||
+        error.message?.includes('cert') ||
+        error.name === 'TypeError' && error.message?.includes('fetch')) {
+      throw new Error('Проблема подключения к API Почты России. Возможно, проблема с SSL/TLS сертификатом. Рекомендуется использовать прокси-сервер.')
+    }
+    
     throw error
   }
 }
@@ -366,11 +387,9 @@ serve(async (req) => {
           description = tariffResponse.description || description
         }
 
-        // Если API не вернул стоимость, используем расчетную
-        if (cost === 0) {
-          const baseCost = 300 // Базовая стоимость
-          const weightCost = Math.ceil(weight / 100) * 50 // 50 руб за каждые 100г
-          cost = baseCost + weightCost
+        // Если API не вернул стоимость, возвращаем ошибку (не используем fallback)
+        if (cost === 0 || !cost) {
+          throw new Error('API Почты России не вернул стоимость доставки. Проверьте параметры запроса и настройки API.')
         }
 
         return new Response(
