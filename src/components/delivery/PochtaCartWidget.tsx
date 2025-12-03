@@ -1,0 +1,249 @@
+import { useEffect, useRef, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, MapPin, AlertCircle } from 'lucide-react';
+
+// Расширяем Window для функции корзинного виджета
+declare global {
+  interface Window {
+    ecomStartCartWidget?: (config: {
+      id: number;
+      target: string;
+      cartValue: number;
+      cartWeight: number;
+      onSelect?: (data: any) => void;
+    }) => void;
+  }
+}
+
+interface PochtaCartWidgetProps {
+  widgetId?: number;
+  cartValue: number; // Сумма корзины в рублях
+  cartWeight: number; // Вес корзины в граммах
+  onSelect?: (data: {
+    office: {
+      id: string;
+      name: string;
+      address: string;
+      postalCode: string;
+      index: string;
+    };
+    cost: number;
+    deliveryTime: string;
+  }) => void;
+}
+
+/**
+ * Корзинный виджет Почты России
+ * Готовый виджет от Почты России для выбора доставки прямо в корзине
+ * Документация: https://otpravka.pochta.ru/widget/help/#_2
+ */
+export const PochtaCartWidget = ({
+  widgetId = 60084,
+  cartValue,
+  cartWeight,
+  onSelect
+}: PochtaCartWidgetProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const scriptRef = useRef<HTMLScriptElement | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedData, setSelectedData] = useState<any>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+
+    if (!containerRef.current) {
+      return;
+    }
+
+    // Создаем контейнер для виджета
+    containerRef.current.innerHTML = '<div id="pochta-cart-widget" style="min-height: 400px; width: 100%"></div>';
+
+    // Загружаем скрипт корзинного виджета
+    const loadWidget = () => {
+      // Проверяем, не загружен ли уже скрипт
+      const existingScript = document.getElementById('pochta-cart-widget-script');
+      if (existingScript && window.ecomStartCartWidget) {
+        setTimeout(() => {
+          initializeWidget();
+        }, 100);
+        return;
+      }
+
+      if (existingScript) {
+        const checkFunction = setInterval(() => {
+          if (window.ecomStartCartWidget) {
+            clearInterval(checkFunction);
+            initializeWidget();
+          }
+        }, 100);
+        setTimeout(() => clearInterval(checkFunction), 5000);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.id = 'pochta-cart-widget-script';
+      script.src = 'https://widget.pochta.ru/cart/widget/widget.js';
+      script.async = true;
+      
+      script.onload = () => {
+        console.log('✅ Скрипт корзинного виджета Почты России загружен');
+        setTimeout(() => {
+          if (window.ecomStartCartWidget) {
+            initializeWidget();
+          } else {
+            setError('Функция ecomStartCartWidget не найдена после загрузки скрипта');
+            setLoading(false);
+          }
+        }, 200);
+      };
+      
+      script.onerror = () => {
+        console.error('❌ Ошибка загрузки скрипта корзинного виджета');
+        setError('Не удалось загрузить скрипт виджета. Проверьте подключение к интернету.');
+        setLoading(false);
+      };
+
+      document.head.appendChild(script);
+      scriptRef.current = script;
+    };
+
+    // Инициализация виджета
+    const initializeWidget = () => {
+      if (!window.ecomStartCartWidget) {
+        setError('Функция корзинного виджета не найдена. Проверьте, что скрипт загружен.');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        console.log('🚀 Инициализируем корзинный виджет Почты России...', {
+          widgetId,
+          cartValue,
+          cartWeight
+        });
+
+        // Инициализируем корзинный виджет
+        window.ecomStartCartWidget({
+          id: widgetId,
+          target: 'pochta-cart-widget',
+          cartValue: cartValue, // Сумма корзины в рублях
+          cartWeight: cartWeight, // Вес корзины в граммах
+          onSelect: (data: any) => {
+            console.log('🎯 Виджет вернул данные о выбранной доставке:', data);
+            
+            // Сохраняем данные
+            setSelectedData(data);
+            
+            // Обрабатываем данные от виджета
+            if (data && onSelect) {
+              // Виджет может возвращать данные в разных форматах
+              const officeData = {
+                office: {
+                  id: data.officeId || data.id || data.index || data.postalCode || '',
+                  name: data.officeName || data.name || 'Отделение Почты России',
+                  address: data.address || data.fullAddress || '',
+                  postalCode: data.postalCode || data.index || '',
+                  index: data.index || data.postalCode || '',
+                },
+                cost: data.cost || data.deliveryCost || data.price || 0,
+                deliveryTime: data.deliveryTime || data.days || data.deliveryDays || '5-7',
+              };
+              
+              onSelect(officeData);
+            }
+            
+            setLoading(false);
+          }
+        });
+        
+        console.log(`✅ Корзинный виджет инициализирован с ID ${widgetId}`);
+        setLoading(false);
+      } catch (err: any) {
+        console.error('❌ Ошибка инициализации корзинного виджета:', err);
+        setError(`Ошибка инициализации виджета: ${err.message}`);
+        setLoading(false);
+      }
+    };
+
+    loadWidget();
+
+    // Очистка
+    return () => {
+      if (scriptRef.current && scriptRef.current.parentNode) {
+        scriptRef.current.parentNode.removeChild(scriptRef.current);
+      }
+      
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
+    };
+  }, [widgetId, cartValue, cartWeight, onSelect]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <MapPin className="h-5 w-5" />
+          Доставка Почтой России
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2">Загрузка виджета доставки...</span>
+          </div>
+        )}
+
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <div className="font-semibold mb-2">{error}</div>
+              <div className="text-sm mt-2 space-y-1">
+                <p><strong>Что делать:</strong></p>
+                <ol className="list-decimal list-inside space-y-1 ml-2">
+                  <li>Проверьте ID виджета в личном кабинете Почты России (otpravka.pochta.ru)</li>
+                  <li>Убедитесь, что ваш домен добавлен в белый список виджета</li>
+                  <li>Проверьте настройки корзинного виджета в разделе "Виджеты" личного кабинета</li>
+                  <li>Если проблема сохраняется, обратитесь в поддержку: support@pochta.ru</li>
+                </ol>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div ref={containerRef} className="w-full" />
+
+        {selectedData && (
+          <Alert className="mt-4">
+            <AlertDescription>
+              <p className="font-semibold mb-1">Выбрана доставка:</p>
+              <p className="text-sm">
+                {selectedData.officeName || selectedData.name || 'Отделение Почты России'}
+              </p>
+              {selectedData.cost && (
+                <p className="text-sm font-semibold mt-1">
+                  Стоимость доставки: {selectedData.cost} ₽
+                </p>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Alert className="mt-4">
+          <AlertDescription className="text-sm">
+            <p>
+              Выберите точку выдачи Почты России на карте выше. 
+              Виджет автоматически рассчитает стоимость доставки на основе вашей корзины.
+            </p>
+          </AlertDescription>
+        </Alert>
+      </CardContent>
+    </Card>
+  );
+};
+

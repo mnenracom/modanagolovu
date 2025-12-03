@@ -8,6 +8,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ShoppingCart, TrendingDown, Package, ArrowRight, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { PochtaCartWidget } from '@/components/delivery/PochtaCartWidget';
+import { useState } from 'react';
 
 interface CartSummaryProps {
   onCheckout?: () => void;
@@ -17,6 +19,19 @@ export const CartSummary = ({ onCheckout }: CartSummaryProps) => {
   const navigate = useNavigate();
   const pricing = useCartPricing();
   const { items } = useCart();
+  const [deliveryData, setDeliveryData] = useState<{
+    office: any;
+    cost: number;
+    deliveryTime: string;
+  } | null>(null);
+
+  // Рассчитываем вес корзины (примерно 100г на товар, можно улучшить)
+  const getCartWeight = (): number => {
+    return items.reduce((total, item) => {
+      // Примерно 100г на единицу товара (можно добавить поле weight в Product)
+      return total + (item.quantity * 100);
+    }, 0);
+  };
 
   // Защита от ошибок - если pricing не загружен, показываем заглушку
   if (!pricing || !pricing.progressToMinOrder) {
@@ -196,6 +211,39 @@ export const CartSummary = ({ onCheckout }: CartSummaryProps) => {
           </div>
         )}
 
+        {/* Доставка (только для розничных заказов) */}
+        {pricing.orderType === 'retail' && pricing.progressToMinOrder.isReached && (
+          <div className="pt-2 border-t">
+            <PochtaCartWidget
+              widgetId={60084} // ID виджета из ЛК Почты России
+              cartValue={pricing.currentTotal}
+              cartWeight={getCartWeight()}
+              onSelect={(data) => {
+                console.log('✅ Данные доставки от виджета:', data);
+                setDeliveryData(data);
+                // Сохраняем в sessionStorage для использования на странице оплаты
+                sessionStorage.setItem('pochtaDelivery', JSON.stringify(data));
+                toast.success(`Доставка выбрана: ${data.cost} ₽`);
+              }}
+            />
+          </div>
+        )}
+
+        {/* Стоимость доставки (если выбрана) */}
+        {deliveryData && (
+          <div className="pt-2 border-t space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Доставка:</span>
+              <span className="font-semibold">
+                {deliveryData.cost.toLocaleString()} ₽
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Срок: {deliveryData.deliveryTime} дней
+            </div>
+          </div>
+        )}
+
         {/* Итоговая сумма */}
         <div className="pt-2 border-t space-y-1">
           <div className="flex items-center justify-between text-base sm:text-lg font-bold">
@@ -204,6 +252,14 @@ export const CartSummary = ({ onCheckout }: CartSummaryProps) => {
               {pricing.currentTotal.toLocaleString()} ₽
             </span>
           </div>
+          {deliveryData && (
+            <div className="flex items-center justify-between text-base sm:text-lg font-bold">
+              <span>Итого с доставкой:</span>
+              <span className="text-primary text-xl sm:text-2xl">
+                {(pricing.currentTotal + deliveryData.cost).toLocaleString()} ₽
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Кнопка оформления */}
