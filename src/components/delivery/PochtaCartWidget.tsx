@@ -83,63 +83,50 @@ export const PochtaCartWidget = ({
         return;
       }
 
-      // Пробуем разные варианты URL скрипта
-      const scriptUrls = [
-        'https://widget.pochta.ru/cart/widget/widget.js', // Корзинный виджет
-      ];
-
-      let currentUrlIndex = 0;
-      let currentScript: HTMLScriptElement | null = null;
-
-      const tryLoadScript = (urlIndex: number) => {
-        if (urlIndex >= scriptUrls.length) {
-          // Если все URL не сработали, пробуем iframe
-          console.warn('Все варианты скрипта не сработали, пробуем iframe');
-          tryIframe();
-          return;
-        }
-
+      // Пробуем загрузить скрипт корзинного виджета
+      const tryLoadScript = () => {
         // Удаляем предыдущий скрипт, если есть
-        if (currentScript && currentScript.parentNode) {
-          currentScript.parentNode.removeChild(currentScript);
+        const existingScript = document.getElementById('pochta-cart-widget-script');
+        if (existingScript && existingScript.parentNode) {
+          existingScript.parentNode.removeChild(existingScript);
         }
 
-        currentScript = document.createElement('script');
-        currentScript.id = `pochta-cart-widget-script-${urlIndex}`;
-        currentScript.src = scriptUrls[urlIndex];
-        currentScript.async = true;
+        const script = document.createElement('script');
+        script.id = 'pochta-cart-widget-script';
+        script.src = 'https://widget.pochta.ru/cart/widget/widget.js';
+        script.async = true;
         
-        const script = currentScript; // Сохраняем ссылку для обработчиков
+        // Сохраняем ссылку на скрипт для использования в обработчиках
+        const scriptElement = script;
         
-        script.onload = () => {
-          console.log(`✅ Скрипт корзинного виджета загружен с URL: ${scriptUrls[urlIndex]}`);
+        scriptElement.onload = () => {
+          console.log('✅ Скрипт корзинного виджета загружен');
           setTimeout(() => {
             if (window.ecomStartCartWidget) {
-              scriptRef.current = script;
+              scriptRef.current = scriptElement;
               initializeWidget();
             } else {
-              // Пробуем следующий URL
+              // Функция не найдена, пробуем iframe
               console.warn('Функция ecomStartCartWidget не найдена, пробуем iframe');
-              if (script.parentNode) {
-                script.parentNode.removeChild(script);
+              if (scriptElement.parentNode) {
+                scriptElement.parentNode.removeChild(scriptElement);
               }
-              currentScript = null;
-              tryLoadScript(urlIndex + 1);
+              tryIframe();
             }
           }, 500);
         };
         
-        script.onerror = () => {
-          console.warn(`❌ Ошибка загрузки скрипта с URL: ${scriptUrls[urlIndex]}`);
-          if (script.parentNode) {
-            script.parentNode.removeChild(script);
+        scriptElement.onerror = () => {
+          console.warn('❌ Ошибка загрузки скрипта корзинного виджета, пробуем iframe');
+          if (scriptElement.parentNode) {
+            scriptElement.parentNode.removeChild(scriptElement);
           }
-          currentScript = null;
-          // Пробуем следующий URL
-          tryLoadScript(urlIndex + 1);
+          // Сразу переходим к iframe
+          tryIframe();
         };
 
-        document.head.appendChild(script);
+        document.head.appendChild(scriptElement);
+        scriptRef.current = scriptElement;
       };
 
       // Альтернативный способ через iframe
@@ -221,10 +208,7 @@ export const PochtaCartWidget = ({
         setError(null);
       };
 
-      tryLoadScript(0);
-
-      document.head.appendChild(script);
-      scriptRef.current = script;
+      tryLoadScript();
     };
 
     // Инициализация виджета
