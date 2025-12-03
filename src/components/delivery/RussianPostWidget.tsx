@@ -188,6 +188,12 @@ export const RussianPostWidget = ({
         delete (window as any).__pochtaWidgetMessageHandler;
       }
       
+      // Останавливаем observer
+      if ((window as any).__pochtaWidgetObserver) {
+        (window as any).__pochtaWidgetObserver.disconnect();
+        delete (window as any).__pochtaWidgetObserver;
+      }
+      
       if (scriptRef.current && scriptRef.current.parentNode) {
         scriptRef.current.parentNode.removeChild(scriptRef.current);
       }
