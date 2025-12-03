@@ -513,9 +513,9 @@ serve(async (req) => {
 
       try {
         // Получение информации об отделении по индексу
-        // Актуальный эндпоинт: GET /postoffice/1.0/{index}
+        // Актуальный эндпоинт: GET /1.0/office/{index}
         const officeResponse = await makePostApiRequest(
-          `/postoffice/1.0/${officeId}`,
+          `/1.0/office/${officeId}`,
           token,
           userAuthKey,
           'GET'
