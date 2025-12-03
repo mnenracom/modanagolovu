@@ -415,34 +415,33 @@ serve(async (req) => {
       try {
         // Расчет стоимости доставки через API Почты России
         // Актуальный эндпоинт: POST /tariff/1.0/calculate
-        // Согласно документации API Почты России, формат запроса:
-        // - object: массив объектов с типом отправления
-        // - index_from: индекс отправителя (строка)
-        // - index_to: индекс получателя (строка)
-        // - weight: вес в граммах
-        // - declared_value: объявленная стоимость в копейках
+        // Согласно документации API Почты России, формат запроса использует camelCase:
+        // - indexFrom: индекс отправителя (строка)
+        // - indexTo: индекс получателя (строка)
+        // - weight: вес в граммах (минимум 100)
+        // - declaredValue: объявленная стоимость в копейках (минимум 1)
+        // - mailType: тип отправления (POSTAL_PARCEL)
+        // - mailCategory: категория (ORDINARY)
         
         // Получаем индексы (должны быть строками)
         const indexFrom = String(from.postalCode || '101000')
         const indexTo = String(to.postalCode || '101000')
         
-        // Объявленная стоимость: если передана в рублях, конвертируем в копейки
-        const declaredValueInKopecks = declaredValue ? Math.ceil(declaredValue * 100) : 0
+        // Вес должен быть минимум 100 граммов для надежности
+        const weightInGrams = Math.max(100, Math.ceil(weight))
         
+        // Объявленная стоимость: если передана в рублях, конвертируем в копейки
+        // Минимум 1 копейка, чтобы API не отклонил запрос
+        const declaredValueInKopecks = declaredValue ? Math.max(1, Math.ceil(declaredValue * 100)) : 1
+        
+        // Упрощенный формат запроса без object (используем только mailType и mailCategory)
         const tariffRequest = {
-          object: [
-            {
-              id: 6430, // Код объекта отправления (6430 - посылка)
-              type: 'POSTAL_PARCEL' // Тип отправления
-            }
-          ],
-          index_from: indexFrom, // Индекс отправителя (строка!)
-          index_to: indexTo, // Индекс получателя (строка!)
-          weight: Math.max(1, Math.ceil(weight)), // Вес в граммах (минимум 1)
-          declared_value: declaredValueInKopecks, // Объявленная стоимость в копейках
-          mail_type: 'POSTAL_PARCEL', // Тип отправления: POSTAL_PARCEL (посылка)
-          mail_category: 'ORDINARY', // Категория: ORDINARY (обычная), REGISTERED (с объявленной ценностью)
-          payment: declaredValueInKopecks, // Сумма наложенного платежа в копейках
+          indexFrom: indexFrom, // Индекс отправителя (строка, camelCase)
+          indexTo: indexTo, // Индекс получателя (строка, camelCase)
+          weight: weightInGrams, // Вес в граммах (минимум 100)
+          declaredValue: declaredValueInKopecks, // Объявленная стоимость в копейках (минимум 1)
+          mailType: 'POSTAL_PARCEL', // Тип отправления: POSTAL_PARCEL (посылка)
+          mailCategory: 'ORDINARY', // Категория: ORDINARY (обычная), REGISTERED (с объявленной ценностью)
         }
 
         console.log('Запрос расчета тарифа:', JSON.stringify(tariffRequest))
@@ -450,6 +449,7 @@ serve(async (req) => {
           from: indexFrom,
           to: indexTo,
           weight: weight,
+          weightInGrams: weightInGrams,
           declaredValue: declaredValue,
           declaredValueInKopecks: declaredValueInKopecks
         })
