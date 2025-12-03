@@ -362,12 +362,46 @@ serve(async (req) => {
         const fullOfficeDataPromises = officeIndices.map(async (index: string) => {
           try {
             console.log(`📮 Запрос данных для отделения ${index}...`)
-            const officeResponse = await makePostApiRequest(
-              `/1.0/office/${index}`,
-              token,
-              userAuthKey,
-              'GET'
-            )
+            // Пробуем разные варианты endpoint'ов
+            let officeResponse: any = null
+            try {
+              officeResponse = await makePostApiRequest(
+                `/postoffice/1.0/objects/${index}`,
+                token,
+                userAuthKey,
+                'GET'
+              )
+              console.log(`✅ Получен ответ для отделения ${index} через /postoffice/1.0/objects/${index}`)
+            } catch (error1: any) {
+              try {
+                officeResponse = await makePostApiRequest(
+                  `/postoffice/1.0/object/${index}`,
+                  token,
+                  userAuthKey,
+                  'GET'
+                )
+                console.log(`✅ Получен ответ для отделения ${index} через /postoffice/1.0/object/${index}`)
+              } catch (error2: any) {
+                try {
+                  officeResponse = await makePostApiRequest(
+                    `/postoffice/1.0/${index}`,
+                    token,
+                    userAuthKey,
+                    'GET'
+                  )
+                  console.log(`✅ Получен ответ для отделения ${index} через /postoffice/1.0/${index}`)
+                } catch (error3: any) {
+                  // Последняя попытка со старым endpoint
+                  officeResponse = await makePostApiRequest(
+                    `/1.0/office/${index}`,
+                    token,
+                    userAuthKey,
+                    'GET'
+                  )
+                  console.log(`✅ Получен ответ для отделения ${index} через /1.0/office/${index}`)
+                }
+              }
+            }
             
             console.log(`✅ Получен ответ для отделения ${index}:`, JSON.stringify(officeResponse, null, 2))
             
@@ -695,13 +729,70 @@ serve(async (req) => {
 
       try {
         // Получение информации об отделении по индексу
-        // Актуальный эндпоинт: GET /1.0/office/{index}
-        const officeResponse = await makePostApiRequest(
-          `/1.0/office/${officeId}`,
-          token,
-          userAuthKey,
-          'GET'
-        )
+        // Пробуем разные варианты endpoint'ов, так как API может использовать разные пути
+        let officeResponse: any = null
+        let lastError: any = null
+        
+        // Вариант 1: /postoffice/1.0/objects/{index} (наиболее вероятный, по аналогии с /postoffice/1.0/by-address)
+        try {
+          console.log(`🔍 Попытка 1: /postoffice/1.0/objects/${officeId}`)
+          officeResponse = await makePostApiRequest(
+            `/postoffice/1.0/objects/${officeId}`,
+            token,
+            userAuthKey,
+            'GET'
+          )
+          console.log(`✅ Успешно получены данные через /postoffice/1.0/objects/${officeId}`)
+        } catch (error1: any) {
+          console.warn(`⚠️ Вариант 1 не сработал:`, error1.message)
+          lastError = error1
+          
+          // Вариант 2: /postoffice/1.0/object/{index} (единственное число)
+          try {
+            console.log(`🔍 Попытка 2: /postoffice/1.0/object/${officeId}`)
+            officeResponse = await makePostApiRequest(
+              `/postoffice/1.0/object/${officeId}`,
+              token,
+              userAuthKey,
+              'GET'
+            )
+            console.log(`✅ Успешно получены данные через /postoffice/1.0/object/${officeId}`)
+          } catch (error2: any) {
+            console.warn(`⚠️ Вариант 2 не сработал:`, error2.message)
+            lastError = error2
+            
+            // Вариант 3: /postoffice/1.0/{index} (прямой путь)
+            try {
+              console.log(`🔍 Попытка 3: /postoffice/1.0/${officeId}`)
+              officeResponse = await makePostApiRequest(
+                `/postoffice/1.0/${officeId}`,
+                token,
+                userAuthKey,
+                'GET'
+              )
+              console.log(`✅ Успешно получены данные через /postoffice/1.0/${officeId}`)
+            } catch (error3: any) {
+              console.warn(`⚠️ Вариант 3 не сработал:`, error3.message)
+              lastError = error3
+              
+              // Вариант 4: /1.0/office/{index} (старый вариант, на случай если он все-таки работает)
+              try {
+                console.log(`🔍 Попытка 4: /1.0/office/${officeId}`)
+                officeResponse = await makePostApiRequest(
+                  `/1.0/office/${officeId}`,
+                  token,
+                  userAuthKey,
+                  'GET'
+                )
+                console.log(`✅ Успешно получены данные через /1.0/office/${officeId}`)
+              } catch (error4: any) {
+                console.error(`❌ Все варианты endpoint'ов не сработали. Последняя ошибка:`, error4.message)
+                lastError = error4
+                throw error4
+              }
+            }
+          }
+        }
 
         if (officeResponse) {
           let type = 'post_office'
