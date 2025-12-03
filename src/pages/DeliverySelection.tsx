@@ -193,29 +193,18 @@ const DeliverySelection = () => {
 
       let calculation: DeliveryCalculation | null = null;
 
-      // Пробуем API
-      try {
-        calculation = await russianPostService.calculateDelivery(
-          senderAddress,
-          {
-            city: addressData.city,
-            postalCode: postalCode,
-          },
-          totalWeight,
-          getTotalPrice()
-        );
+      // Рассчитываем через API (без fallback)
+      calculation = await russianPostService.calculateDelivery(
+        senderAddress,
+        {
+          city: addressData.city,
+          postalCode: postalCode,
+        },
+        totalWeight,
+        getTotalPrice()
+      );
 
-        console.log('✅ Расчет доставки через API успешен:', calculation);
-      } catch (apiError: any) {
-        console.warn('⚠️ API расчета недоступен, используем fallback:', apiError);
-        // Используем fallback стоимость
-        calculation = {
-          cost: 300, // Примерная стоимость доставки
-          deliveryTime: '5-7',
-          type: 'standard',
-          description: 'Стандартная доставка Почтой России (примерная стоимость)',
-        };
-      }
+      console.log('✅ Расчет доставки через API успешен:', calculation);
 
       if (calculation) {
         setDeliveryCalculation(calculation);
@@ -232,14 +221,8 @@ const DeliverySelection = () => {
       }
     } catch (error: any) {
       console.error('❌ Ошибка при расчете доставки:', error);
-      // Даже при ошибке устанавливаем fallback стоимость
-      setDeliveryCalculation({
-        cost: 300,
-        deliveryTime: '5-7',
-        type: 'standard',
-        description: 'Стандартная доставка Почтой России',
-      });
-      toast.warning('Используется примерная стоимость доставки');
+      toast.error(error.message || 'Не удалось рассчитать стоимость доставки. Проверьте настройки API.');
+      setDeliveryCalculation(null);
     } finally {
       setCalculating(false);
     }
