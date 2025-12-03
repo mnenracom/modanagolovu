@@ -226,46 +226,56 @@ serve(async (req) => {
 
       try {
         // Поиск отделений по адресу через API Почты России
-        // Актуальный эндпоинт: GET /postoffice/1.0/by-address
+        // Актуальный эндпоинт: POST /1.0/offices/search
         // Согласно документации: https://otpravka.pochta.ru/specification
         const cityName = address.city.trim()
         
-        // Формируем адрес для поиска
-        // Чем точнее адрес, тем точнее будет поиск
-        let searchAddress = cityName
-        if (address.region) {
-          searchAddress = `${address.region}, ${cityName}`
-        }
-        if (address.postalCode) {
-          searchAddress = `${searchAddress}, ${address.postalCode}`
-        }
-        
-        // Параметры запроса через query string
-        const queryParams = new URLSearchParams({
-          address: searchAddress,
-          top: '50' // Количество ближайших почтовых отделений (по умолчанию 3)
-        })
-        
         console.log('Запрос поиска отделений:', {
-          address: searchAddress,
-          top: 50
+          city: cityName,
+          region: address.region,
+          postalCode: address.postalCode
         })
         
-        // Пробуем найти отделения через актуальный API endpoint
-        // GET /postoffice/1.0/by-address?address=...&top=50
+        // Тело запроса для поиска отделений
+        // API ожидает POST запрос с телом, содержащим фильтры
+        const searchRequestBody = {
+          city: cityName,
+          ...(address.region && { region: address.region }),
+          ...(address.postalCode && { postalCode: address.postalCode }),
+          // Можно добавить фильтры по типу отделений
+          // type: ['POST_OFFICE', 'POSTOMAT'] // или оставить пустым для всех типов
+        }
+        
+        // Используем правильный endpoint для поиска отделений
+        // POST /1.0/offices/search
         const officesResponse = await makePostApiRequest(
-          `/postoffice/1.0/by-address?${queryParams.toString()}`,
+          '/1.0/offices/search',
           token,
           userAuthKey,
-          'GET'
+          'POST',
+          searchRequestBody
         )
 
         // Преобразуем ответ API в наш формат
         let postOffices: any[] = []
         
+        // API может вернуть массив напрямую или объект с полем offices/items/results
+        let officesArray: any[] = []
         if (Array.isArray(officesResponse)) {
+          officesArray = officesResponse
+        } else if (officesResponse && typeof officesResponse === 'object') {
+          // Пробуем найти массив в разных возможных полях ответа
+          officesArray = officesResponse.offices || 
+                        officesResponse.items || 
+                        officesResponse.results || 
+                        officesResponse.data ||
+                        officesResponse.postOffices ||
+                        []
+        }
+        
+        if (officesArray.length > 0) {
           // Фильтруем по городу, если API вернул все отделения
-          postOffices = officesResponse
+          postOffices = officesArray
             .filter((office: any) => {
               // Проверяем, что отделение находится в нужном городе
               const officeCity = office?.address?.city || office?.city || ''
