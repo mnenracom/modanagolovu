@@ -150,7 +150,7 @@ const DeliverySelection = () => {
   };
 
   // Обработка выбора отделения из виджета
-  const handleWidgetOfficeSelected = (office: {
+  const handleWidgetOfficeSelected = async (office: {
     id: string;
     name: string;
     address: string;
@@ -160,7 +160,7 @@ const DeliverySelection = () => {
     console.log('🎯 handleWidgetOfficeSelected вызван с данными:', office);
     
     // Преобразуем данные виджета в формат PostOffice
-    const postOffice: PostOffice = {
+    let postOffice: PostOffice = {
       id: office.id || office.postalCode || office.index || 'unknown',
       name: office.name || 'Отделение Почты России',
       address: office.address || '',
@@ -168,6 +168,28 @@ const DeliverySelection = () => {
       longitude: 0,
       type: 'post_office',
     };
+    
+    // Если адрес неполный (только индекс), пытаемся получить полные данные через API
+    if ((!postOffice.address || postOffice.address.includes('Почтовый индекс:')) && postOffice.id && postOffice.id.match(/^\d{6}$/)) {
+      try {
+        console.log('🔍 Получаем полные данные об отделении по индексу:', postOffice.id);
+        const fullOfficeData = await russianPostService.getPostOfficeById(postOffice.id);
+        if (fullOfficeData) {
+          postOffice = {
+            ...postOffice,
+            name: fullOfficeData.name || postOffice.name,
+            address: fullOfficeData.address || postOffice.address,
+            workingHours: fullOfficeData.workingHours,
+            latitude: fullOfficeData.latitude,
+            longitude: fullOfficeData.longitude,
+          };
+          console.log('✅ Получены полные данные об отделении:', postOffice);
+        }
+      } catch (error) {
+        console.warn('⚠️ Не удалось получить полные данные об отделении:', error);
+        // Продолжаем с базовыми данными
+      }
+    }
     
     console.log('📮 Преобразовано в PostOffice:', postOffice);
     
@@ -490,20 +512,40 @@ const DeliverySelection = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground">Стоимость доставки:</span>
-                            <span className="text-2xl font-bold text-primary">
-                              {Math.ceil(deliveryCalculation.cost).toLocaleString('ru-RU')} ₽
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground">Срок доставки:</span>
-                            <span className="font-semibold">
-                              {deliveryCalculation.deliveryTime.includes('-') 
-                                ? `${deliveryCalculation.deliveryTime} дней`
-                                : `${deliveryCalculation.deliveryTime} дней`}
-                            </span>
-                          </div>
+                    {/* Информация о выбранном отделении */}
+                    <div className="pb-4 border-b">
+                      <div className="flex items-start gap-2 mb-2">
+                        <MapPin className="h-4 w-4 text-primary mt-0.5" />
+                        <div className="flex-1">
+                          <p className="font-semibold text-sm">{selectedOffice.name}</p>
+                          {selectedOffice.address && selectedOffice.address !== 'Почтовый индекс: ' + selectedOffice.id && (
+                            <p className="text-sm text-muted-foreground mt-1">{selectedOffice.address}</p>
+                          )}
+                          {selectedOffice.id && selectedOffice.id.match(/^\d{6}$/) && (
+                            <p className="text-xs text-muted-foreground mt-1">Индекс: {selectedOffice.id}</p>
+                          )}
+                          {selectedOffice.workingHours && selectedOffice.workingHours !== 'Получение деталей через getPostOfficeById' && (
+                            <p className="text-xs text-muted-foreground mt-1">Часы работы: {selectedOffice.workingHours}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Стоимость и срок доставки */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Стоимость доставки:</span>
+                      <span className="text-2xl font-bold text-primary">
+                        {Math.ceil(deliveryCalculation.cost).toLocaleString('ru-RU')} ₽
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Срок доставки:</span>
+                      <span className="font-semibold">
+                        {deliveryCalculation.deliveryTime.includes('-') 
+                          ? `${deliveryCalculation.deliveryTime} дней`
+                          : `${deliveryCalculation.deliveryTime} дней`}
+                      </span>
+                    </div>
                     {deliveryCalculation.description && (
                       <p className="text-sm text-muted-foreground">{deliveryCalculation.description}</p>
                     )}
