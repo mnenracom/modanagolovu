@@ -429,7 +429,7 @@ serve(async (req) => {
 
       try {
         // Расчет стоимости доставки через API Почты России
-        // Актуальный эндпоинт: POST /tariff/1.0/calculate
+        // Актуальный эндпоинт: POST /1.0/tariff (согласно документации)
         // Согласно документации API Почты России, формат запроса использует camelCase:
         // - indexFrom: индекс отправителя (строка)
         // - indexTo: индекс получателя (строка)
@@ -478,8 +478,9 @@ serve(async (req) => {
           declaredValueInKopecks: declaredValueInKopecks
         })
 
+        // ВАЖНО: Используем правильный endpoint согласно документации: /1.0/tariff (не /tariff/1.0/calculate)
         const tariffResponse = await makePostApiRequest(
-          '/tariff/1.0/calculate',
+          '/1.0/tariff',
           token,
           userAuthKey,
           'POST',
