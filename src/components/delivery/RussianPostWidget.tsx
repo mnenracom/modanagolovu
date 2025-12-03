@@ -116,18 +116,41 @@ export const RussianPostWidget = ({
 
       try {
         // Callback функция для обработки выбора отделения
+        // Согласно документации виджета, callback получает объект с данными отделения
         const callbackFunction = (data: any) => {
-          console.log('Выбрано отделение из виджета:', data);
+          console.log('🔔 Callback вызван! Данные от виджета:', data);
+          console.log('Тип данных:', typeof data);
+          console.log('Ключи объекта:', data ? Object.keys(data) : 'null');
           
-          if (onOfficeSelected && data) {
-            // Преобразуем данные виджета в наш формат
-            onOfficeSelected({
-              id: data.id || data.index || data.postalCode || '',
-              name: data.name || data.fullName || 'Отделение Почты России',
-              address: data.address || data.fullAddress || data.addressString || '',
-              postalCode: data.postalCode || data.index || postalCode || '',
-              index: data.index || data.postalCode || '',
-            });
+          if (!data) {
+            console.warn('Виджет вернул пустые данные');
+            setError('Виджет не вернул данные об отделении');
+            setLoading(false);
+            return;
+          }
+          
+          if (onOfficeSelected) {
+            // Виджет может передавать данные в разных форматах
+            // Пробуем извлечь все возможные поля
+            const officeData = {
+              id: data.id || data.officeId || data.index || data.postalCode || String(data.id || ''),
+              name: data.name || data.fullName || data.officeName || data.title || 'Отделение Почты России',
+              address: data.address || data.fullAddress || data.addressString || data.officeAddress || data.street || '',
+              postalCode: data.postalCode || data.index || data.postalIndex || postalCode || '',
+              index: data.index || data.postalCode || data.postalIndex || '',
+            };
+            
+            console.log('📦 Обработанные данные отделения:', officeData);
+            
+            // Проверяем, что есть хотя бы минимальные данные
+            if (!officeData.id && !officeData.postalCode) {
+              console.error('Недостаточно данных от виджета:', data);
+              setError('Виджет вернул неполные данные. Попробуйте выбрать другое отделение.');
+              setLoading(false);
+              return;
+            }
+            
+            onOfficeSelected(officeData);
           }
           
           setLoading(false);

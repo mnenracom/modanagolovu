@@ -159,6 +159,7 @@ const DeliverySelection = () => {
 
   // Выбор точки выдачи и расчет стоимости
   const handleSelectOffice = async (office: PostOffice) => {
+    console.log('📮 Выбрано отделение:', office);
     setSelectedOffice(office);
     setCalculating(true);
     
@@ -169,27 +170,56 @@ const DeliverySelection = () => {
         return sum + (item.quantity * 100);
       }, 0);
 
-      const calculation = await russianPostService.calculateDelivery(
-        senderAddress,
-        {
-          city: addressData.city,
-          postalCode: office.address.match(/\d{6}/)?.[0] || addressData.postalCode || '',
-        },
-        totalWeight,
-        getTotalPrice()
-      );
+      // Извлекаем почтовый индекс из адреса или используем переданный
+      const postalCode = office.address.match(/\d{6}/)?.[0] || 
+                        (office as any).postalCode || 
+                        (office as any).index || 
+                        addressData.postalCode || 
+                        '';
 
-      setDeliveryCalculation(calculation);
+      console.log('📊 Параметры расчета доставки:', {
+        from: senderAddress,
+        to: { city: addressData.city, postalCode },
+        weight: totalWeight,
+        value: getTotalPrice()
+      });
+
+      try {
+        const calculation = await russianPostService.calculateDelivery(
+          senderAddress,
+          {
+            city: addressData.city,
+            postalCode: postalCode,
+          },
+          totalWeight,
+          getTotalPrice()
+        );
+
+        console.log('✅ Расчет доставки успешен:', calculation);
+        setDeliveryCalculation(calculation);
+        toast.success(`Стоимость доставки: ${calculation.cost} ₽, срок: ${calculation.deliveryTime} дней`);
+      } catch (apiError: any) {
+        console.warn('⚠️ API расчета недоступен, используем примерную стоимость:', apiError);
+        // Если API не работает, используем примерную стоимость
+        // Это нормально, так как виджет уже выбрал отделение
+        setDeliveryCalculation({
+          cost: 300, // Примерная стоимость доставки Почтой России
+          deliveryTime: '5-7',
+          type: 'standard',
+          description: 'Стандартная доставка Почтой России',
+        });
+        toast.info('Используется примерная стоимость доставки. Точная стоимость будет рассчитана при оформлении заказа.');
+      }
     } catch (error: any) {
-      console.error('Ошибка расчета стоимости доставки:', error);
-      toast.error(error.message || 'Не удалось рассчитать стоимость доставки');
-      // Устанавливаем примерную стоимость
+      console.error('❌ Ошибка при обработке выбора отделения:', error);
+      // Даже при ошибке устанавливаем примерную стоимость, чтобы пользователь мог продолжить
       setDeliveryCalculation({
-        cost: 300, // Примерная стоимость
+        cost: 300,
         deliveryTime: '5-7',
         type: 'standard',
-        description: 'Стандартная доставка',
+        description: 'Стандартная доставка Почтой России',
       });
+      toast.warning('Не удалось рассчитать точную стоимость. Используется примерная стоимость доставки.');
     } finally {
       setCalculating(false);
     }
