@@ -58,19 +58,35 @@ export const russianPostService = {
         return { apiKey: null, apiToken: null, apiSecret: null };
       }
 
-      // API ключ (Authorization-Key) - это токен авторизации приложения (AccessToken)
-      const apiKey = data.api_key || data.settings?.api_key || data.settings?.authorization_key || null;
-      
-      // API токен (AccessToken) - может быть в api_secret или settings
-      const apiToken = data.api_secret || data.settings?.api_token || data.settings?.access_token || data.settings?.authorization_token || null;
+      // 1. AccessToken (Токен приложения) - для заголовка Authorization: AccessToken <token>
+      // Хранится в api_key или settings.api_token
+      const accessToken = data.api_key || 
+                         data.settings?.api_token || 
+                         data.settings?.access_token || 
+                         data.settings?.authorization_token ||
+                         data.settings?.api_key ||
+                         null;
 
-      // API Secret - это base64(login:password) для заголовка X-User-Authorization
-      // Может быть в api_secret (если apiToken в settings) или в settings.api_secret
-      const apiSecret = data.settings?.api_secret || 
-                       data.settings?.user_auth || 
-                       data.settings?.base64_auth ||
-                       (data.api_secret && !apiToken ? data.api_secret : null) || // Если api_secret не используется как токен
-                       null;
+      // 2. Basic Auth Secret (base64(login:password)) - для заголовка X-User-Authorization: Basic <base64>
+      // Хранится в api_secret или settings.api_secret
+      // ВАЖНО: убираем префикс "Basic " если он есть
+      let basicAuthSecret = data.api_secret || 
+                           data.settings?.api_secret || 
+                           data.settings?.user_auth || 
+                           data.settings?.base64_auth ||
+                           null;
+      
+      // Убираем префикс "Basic " если он присутствует (пользователь мог сохранить с префиксом)
+      if (basicAuthSecret && basicAuthSecret.startsWith('Basic ')) {
+        basicAuthSecret = basicAuthSecret.substring(6).trim();
+      }
+
+      // Возвращаем:
+      return {
+        apiKey: accessToken,        // AccessToken (основной ключ для Authorization)
+        apiToken: accessToken,      // Дублируем для надежности
+        apiSecret: basicAuthSecret  // Base64(login:password) для X-User-Authorization
+      };
 
       return { apiKey, apiToken, apiSecret };
     } catch (error) {

@@ -71,8 +71,14 @@ async function makePostApiRequest(
   
   // Добавляем X-User-Authorization если передан userAuthKey
   // userAuthKey должен быть base64(login:password) согласно документации
+  // ВАЖНО: убираем префикс "Basic " если он уже есть (на случай, если пользователь сохранил с префиксом)
   if (userAuthKey) {
-    headers['X-User-Authorization'] = `Basic ${userAuthKey}`
+    let basicAuthValue = userAuthKey.trim();
+    // Убираем префикс "Basic " если он присутствует
+    if (basicAuthValue.startsWith('Basic ')) {
+      basicAuthValue = basicAuthValue.substring(6).trim();
+    }
+    headers['X-User-Authorization'] = `Basic ${basicAuthValue}`
   }
   
   console.log('Заголовки запроса:', {
@@ -107,6 +113,15 @@ async function makePostApiRequest(
       // Специальная обработка ошибки 407 (неправильный endpoint или метод)
       if (response.status === 407) {
         throw new Error('Ошибка 407: Неправильный endpoint или метод API. Возможно, API Почты России изменился. Проверьте актуальную документацию: https://otpravka.pochta.ru/specification')
+      }
+      
+      // Специальная обработка ошибки 401 (неправильный токен)
+      if (response.status === 401) {
+        const errorMsg = errorText.toLowerCase();
+        if (errorMsg.includes('token') || errorMsg.includes('unauthorized')) {
+          throw new Error('Ошибка 401: Неправильный AccessToken. Проверьте, что в поле api_key таблицы delivery_services сохранен правильный токен приложения (AccessToken) из личного кабинета Почты России. Токен должен быть длинной строкой символов, а не base64(login:password).')
+        }
+        throw new Error(`Ошибка 401: Не авторизован. Проверьте правильность AccessToken в настройках доставки. Детали: ${errorText.substring(0, 200)}`)
       }
       
       // Специальная обработка ошибки 417 (блокировка)
@@ -178,11 +193,23 @@ serve(async (req) => {
     
     // apiSecret - это base64(login:password) для заголовка X-User-Authorization (ОБЯЗАТЕЛЕН!)
     // Приоритет: apiSecret > userAuth > apiKey (если похож на base64)
-    const userAuthKey = apiSecret || userAuth || (apiKey && apiKey.length > 20 ? apiKey : null)
+    let userAuthKey = apiSecret || userAuth || (apiKey && apiKey.length > 20 ? apiKey : null)
+    
+    // Убираем префикс "Basic " если он присутствует (на случай, если пользователь сохранил с префиксом)
+    if (userAuthKey && userAuthKey.startsWith('Basic ')) {
+      userAuthKey = userAuthKey.substring(6).trim();
+    }
     
     // Логируем наличие секрета для отладки
     if (!userAuthKey) {
       console.warn('⚠️ ВНИМАНИЕ: X-User-Authorization не будет отправлен. API может вернуть ошибку 407.')
+    }
+    
+    // Логируем наличие токена для отладки
+    if (!token) {
+      console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: AccessToken не предоставлен. API вернет ошибку 401.')
+    } else {
+      console.log('✅ AccessToken предоставлен, длина:', token.length)
     }
 
     // Поиск точек выдачи
