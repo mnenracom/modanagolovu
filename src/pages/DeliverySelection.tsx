@@ -27,6 +27,7 @@ const getWidgetId = async (): Promise<number> => {
 };
 import { Badge } from '@/components/ui/badge';
 import { RussianPostWidget } from '@/components/delivery/RussianPostWidget';
+import { PochtaCartWidget } from '@/components/delivery/PochtaCartWidget';
 
 const DeliverySelection = () => {
   const { items, getTotalPrice } = useCart();
@@ -38,6 +39,18 @@ const DeliverySelection = () => {
   const [calculating, setCalculating] = useState(false);
   const [useWidget, setUseWidget] = useState(false); // Флаг для использования виджета
   const [apiError, setApiError] = useState<string | null>(null);
+  const [widgetDeliveryData, setWidgetDeliveryData] = useState<{
+    office: any;
+    cost: number;
+    deliveryTime: string;
+  } | null>(null);
+  
+  // Рассчитываем вес корзины (примерно 100г на товар)
+  const getCartWeight = (): number => {
+    return items.reduce((total, item) => {
+      return total + (item.quantity * 100);
+    }, 0);
+  };
   
   // Данные адреса
   const [addressData, setAddressData] = useState<AddressData>({
@@ -344,13 +357,49 @@ const DeliverySelection = () => {
                     </AlertDescription>
                   </Alert>
                   
-                  <RussianPostWidget
-                    city={addressData.city}
-                    region={addressData.region}
-                    postalCode={addressData.postalCode}
-                    widgetId={60084} // Можно получить из настроек, пока используем значение по умолчанию
-                    onOfficeSelected={handleWidgetOfficeSelected}
+                  {/* Корзинный виджет Почты России */}
+                  <PochtaCartWidget
+                    widgetId={60084}
+                    cartValue={getTotalPrice()}
+                    cartWeight={getCartWeight()}
+                    onSelect={(data) => {
+                      console.log('✅ Данные доставки от корзинного виджета:', data);
+                      setWidgetDeliveryData(data);
+                      
+                      // Преобразуем данные виджета в формат для расчета
+                      const widgetOffice: PostOffice = {
+                        id: data.office.id || data.office.index || 'widget_office',
+                        name: data.office.name || 'Отделение Почты России',
+                        address: data.office.address || '',
+                        latitude: 0,
+                        longitude: 0,
+                        workingHours: '',
+                        distance: null,
+                        type: 'post_office',
+                      };
+                      
+                      setSelectedOffice(widgetOffice);
+                      setDeliveryCalculation({
+                        cost: data.cost,
+                        deliveryTime: data.deliveryTime,
+                        type: 'standard',
+                        description: 'Доставка Почтой России',
+                      });
+                      
+                      toast.success(`Доставка выбрана: ${data.cost} ₽`);
+                    }}
                   />
+                  
+                  {/* Старый виджет (оставляем как fallback) */}
+                  <div className="mt-4">
+                    <RussianPostWidget
+                      city={addressData.city}
+                      region={addressData.region}
+                      postalCode={addressData.postalCode}
+                      widgetId={60084}
+                      onOfficeSelected={handleWidgetOfficeSelected}
+                    />
+                  </div>
                   
                   <div className="mt-4 flex gap-2">
                     <Button
