@@ -41,11 +41,11 @@ export interface AddressData {
  */
 export const russianPostService = {
   /**
-   * Получить API ключ и токен из настроек
+   * Получить API ключ, токен и секрет из настроек
    */
-  async getApiCredentials(): Promise<{ apiKey: string | null; apiToken: string | null }> {
+  async getApiCredentials(): Promise<{ apiKey: string | null; apiToken: string | null; apiSecret: string | null }> {
     try {
-      // Получаем API ключ и токен из настроек доставки (delivery_services)
+      // Получаем API ключ, токен и секрет из настроек доставки (delivery_services)
       const { data, error } = await supabase
         .from('delivery_services')
         .select('api_key, api_secret, settings')
@@ -55,19 +55,27 @@ export const russianPostService = {
 
       if (error || !data) {
         console.warn('API ключ Почты России не найден в настройках');
-        return { apiKey: null, apiToken: null };
+        return { apiKey: null, apiToken: null, apiSecret: null };
       }
 
-      // API ключ (Authorization-Key)
+      // API ключ (Authorization-Key) - это токен авторизации приложения (AccessToken)
       const apiKey = data.api_key || data.settings?.api_key || data.settings?.authorization_key || null;
       
       // API токен (AccessToken) - может быть в api_secret или settings
       const apiToken = data.api_secret || data.settings?.api_token || data.settings?.access_token || data.settings?.authorization_token || null;
 
-      return { apiKey, apiToken };
+      // API Secret - это base64(login:password) для заголовка X-User-Authorization
+      // Может быть в api_secret (если apiToken в settings) или в settings.api_secret
+      const apiSecret = data.settings?.api_secret || 
+                       data.settings?.user_auth || 
+                       data.settings?.base64_auth ||
+                       (data.api_secret && !apiToken ? data.api_secret : null) || // Если api_secret не используется как токен
+                       null;
+
+      return { apiKey, apiToken, apiSecret };
     } catch (error) {
       console.error('Ошибка получения API ключа Почты России:', error);
-      return { apiKey: null, apiToken: null };
+      return { apiKey: null, apiToken: null, apiSecret: null };
     }
   },
 
@@ -77,7 +85,7 @@ export const russianPostService = {
    */
   async searchPostOffices(address: AddressData): Promise<PostOffice[]> {
     try {
-      const { apiKey, apiToken } = await this.getApiCredentials();
+      const { apiKey, apiToken, apiSecret } = await this.getApiCredentials();
       
       if (!apiKey) {
         throw new Error('API ключ Почты России не настроен. Настройте его в админ-панели → Доставка → Службы доставки');
@@ -86,12 +94,13 @@ export const russianPostService = {
       // Используем ТОЛЬКО Edge Function
       // Согласно документации API Почты России:
       // - apiToken - это токен авторизации приложения (AccessToken)
-      // - userAuth - это base64(login:password) для X-User-Authorization (опционально)
+      // - apiSecret - это base64(login:password) для X-User-Authorization (обязателен!)
       const { data, error } = await supabase.functions.invoke('russian-post-api', {
         body: {
           action: 'search_post_offices',
           apiToken: apiToken || apiKey, // Токен авторизации приложения (обязателен)
           apiKey: apiKey, // Для обратной совместимости
+          apiSecret: apiSecret, // Base64(login:password) для X-User-Authorization (обязателен!)
           address: {
             city: address.city,
             region: address.region,
@@ -141,7 +150,7 @@ export const russianPostService = {
     declaredValue?: number // Объявленная стоимость
   ): Promise<DeliveryCalculation> {
     try {
-      const { apiKey, apiToken } = await this.getApiCredentials();
+      const { apiKey, apiToken, apiSecret } = await this.getApiCredentials();
       
       if (!apiKey) {
         throw new Error('API ключ Почты России не настроен. Настройте его в админ-панели → Доставка → Службы доставки');
@@ -152,7 +161,8 @@ export const russianPostService = {
         body: {
           action: 'calculate_delivery',
           apiKey,
-          apiToken, // Может быть null, функция использует apiKey как fallback
+          apiToken: apiToken || apiKey, // Токен авторизации приложения
+          apiSecret: apiSecret, // Base64(login:password) для X-User-Authorization (обязателен!)
           from: {
             city: from.city,
             postalCode: from.postalCode,
@@ -196,7 +206,7 @@ export const russianPostService = {
    */
   async getPostOfficeById(officeId: string): Promise<PostOffice | null> {
     try {
-      const { apiKey, apiToken } = await this.getApiCredentials();
+      const { apiKey, apiToken, apiSecret } = await this.getApiCredentials();
       
       if (!apiKey) {
         throw new Error('API ключ Почты России не настроен. Настройте его в админ-панели → Доставка → Службы доставки');
@@ -206,7 +216,8 @@ export const russianPostService = {
         body: {
           action: 'get_post_office',
           apiKey,
-          apiToken, // Может быть null, функция использует apiKey как fallback
+          apiToken: apiToken || apiKey, // Токен авторизации приложения
+          apiSecret: apiSecret, // Base64(login:password) для X-User-Authorization (обязателен!)
           officeId,
         },
       });

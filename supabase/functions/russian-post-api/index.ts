@@ -159,7 +159,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, apiKey, apiToken, userAuth, address, from, to, weight, declaredValue, officeId } = await req.json()
+    const { action, apiKey, apiToken, apiSecret, userAuth, address, from, to, weight, declaredValue, officeId } = await req.json()
 
     // Токен авторизации приложения обязателен
     if (!apiToken && !apiKey) {
@@ -176,9 +176,14 @@ serve(async (req) => {
     // Если не передан apiToken, используем apiKey как токен (для обратной совместимости)
     const token = apiToken || apiKey
     
-    // userAuth - это base64(login:password) для заголовка X-User-Authorization
-    // Если не передан, используем apiKey (если он похож на base64)
-    const userAuthKey = userAuth || (apiKey && apiKey.length > 20 ? apiKey : null)
+    // apiSecret - это base64(login:password) для заголовка X-User-Authorization (ОБЯЗАТЕЛЕН!)
+    // Приоритет: apiSecret > userAuth > apiKey (если похож на base64)
+    const userAuthKey = apiSecret || userAuth || (apiKey && apiKey.length > 20 ? apiKey : null)
+    
+    // Логируем наличие секрета для отладки
+    if (!userAuthKey) {
+      console.warn('⚠️ ВНИМАНИЕ: X-User-Authorization не будет отправлен. API может вернуть ошибку 407.')
+    }
 
     // Поиск точек выдачи
     if (action === 'search_post_offices') {
