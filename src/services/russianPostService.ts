@@ -206,7 +206,20 @@ export const russianPostService = {
       }
 
       // Убеждаемся, что стоимость - это число (Edge Function уже конвертирует из копеек в рубли)
-      const cost = typeof data.cost === 'number' ? Math.ceil(data.cost) : parseInt(String(data.cost || 0), 10);
+      // Округляем до целого числа для отображения
+      let cost = 0;
+      if (typeof data.cost === 'number') {
+        cost = Math.round(data.cost);
+      } else if (typeof data.cost === 'string') {
+        cost = Math.round(parseFloat(data.cost) || 0);
+      } else {
+        cost = parseInt(String(data.cost || 0), 10);
+      }
+      
+      // Убеждаемся, что стоимость положительная
+      if (cost < 0) {
+        cost = 0;
+      }
       
       // Форматируем срок доставки
       let deliveryTime = '5-7';

@@ -514,18 +514,32 @@ const DeliverySelection = () => {
                   <CardContent className="space-y-4">
                     {/* Информация о выбранном отделении */}
                     <div className="pb-4 border-b">
-                      <div className="flex items-start gap-2 mb-2">
-                        <MapPin className="h-4 w-4 text-primary mt-0.5" />
-                        <div className="flex-1">
-                          <p className="font-semibold text-sm">{selectedOffice.name}</p>
-                          {selectedOffice.address && selectedOffice.address !== 'Почтовый индекс: ' + selectedOffice.id && (
-                            <p className="text-sm text-muted-foreground mt-1">{selectedOffice.address}</p>
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm mb-1">{selectedOffice.name}</p>
+                          {/* Отображаем адрес, если он есть и не является заглушкой */}
+                          {selectedOffice.address && 
+                           !selectedOffice.address.startsWith('Почтовый индекс:') &&
+                           !selectedOffice.address.includes('getPostOfficeById') &&
+                           selectedOffice.address.length > 5 && (
+                            <p className="text-sm text-muted-foreground mb-1 break-words">
+                              {selectedOffice.address}
+                            </p>
                           )}
+                          {/* Если адрес неполный, показываем хотя бы индекс */}
                           {selectedOffice.id && selectedOffice.id.match(/^\d{6}$/) && (
-                            <p className="text-xs text-muted-foreground mt-1">Индекс: {selectedOffice.id}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Почтовый индекс: {selectedOffice.id}
+                            </p>
                           )}
-                          {selectedOffice.workingHours && selectedOffice.workingHours !== 'Получение деталей через getPostOfficeById' && (
-                            <p className="text-xs text-muted-foreground mt-1">Часы работы: {selectedOffice.workingHours}</p>
+                          {/* Часы работы, если доступны */}
+                          {selectedOffice.workingHours && 
+                           !selectedOffice.workingHours.includes('getPostOfficeById') &&
+                           selectedOffice.workingHours !== 'Не указано' && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Часы работы: {selectedOffice.workingHours}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -535,7 +549,10 @@ const DeliverySelection = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Стоимость доставки:</span>
                       <span className="text-2xl font-bold text-primary">
-                        {Math.ceil(deliveryCalculation.cost).toLocaleString('ru-RU')} ₽
+                        {Math.round(deliveryCalculation.cost).toLocaleString('ru-RU', {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0
+                        })} ₽
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
