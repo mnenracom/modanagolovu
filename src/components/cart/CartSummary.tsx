@@ -46,7 +46,12 @@ export const CartSummary = ({ onCheckout }: CartSummaryProps) => {
     if (onCheckout) {
       onCheckout();
     } else {
-      navigate('/checkout');
+      // Маршрутизация в зависимости от типа заказа
+      if (pricing.orderType === 'wholesale') {
+        navigate('/checkout'); // Опт - форма заявки
+      } else {
+        navigate('/delivery'); // Розница - выбор доставки
+      }
     }
   };
 

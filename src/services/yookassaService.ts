@@ -69,6 +69,7 @@ export const yookassaService = {
           orderNumber,
           description,
           returnUrl,
+          testMode: gateway.testMode || false,
         },
       });
 

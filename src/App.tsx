@@ -12,6 +12,8 @@ import Catalog from "./pages/Catalog";
 import ProductDetail from "./pages/ProductDetail";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
+import DeliverySelection from "./pages/DeliverySelection";
+import Payment from "./pages/Payment";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import CheckoutError from "./pages/CheckoutError";
 import About from "./pages/About";
@@ -80,6 +82,8 @@ const App = () => (
               <Route path="/product/:id" element={<ProductDetail />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/delivery" element={<DeliverySelection />} />
+              <Route path="/payment" element={<Payment />} />
               <Route path="/checkout/success" element={<CheckoutSuccess />} />
               <Route path="/checkout/error" element={<CheckoutError />} />
               <Route path="/about" element={<About />} />

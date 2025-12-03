@@ -18,11 +18,22 @@ serve(async (req) => {
 
   try {
     // Получаем параметры из запроса
-    const { shopId, secretKey, amount, orderId, orderNumber, description, returnUrl } = await req.json()
+    const { shopId, secretKey, amount, orderId, orderNumber, description, returnUrl, testMode } = await req.json()
 
     if (!shopId || !secretKey || !amount || !orderId || !returnUrl) {
       return new Response(
-        JSON.stringify({ error: 'Недостаточно параметров для создания платежа' }),
+        JSON.stringify({ error: 'Недостаточно параметров для создания платежа. Проверьте Shop ID и Secret Key.' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Проверяем формат Shop ID (должен быть числом)
+    if (isNaN(parseInt(shopId))) {
+      return new Response(
+        JSON.stringify({ error: 'Неверный формат Shop ID. Должно быть число.' }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -44,10 +55,17 @@ serve(async (req) => {
       metadata: {
         orderId: orderId,
         orderNumber: orderNumber || orderId,
+        testMode: testMode ? 'true' : 'false',
       },
+      capture: true, // Автоматическое подтверждение платежа
     }
 
-    const response = await fetch('https://api.yookassa.ru/v3/payments', {
+    // Используем правильный URL API (продакшн или тестовый)
+    const apiUrl = testMode 
+      ? 'https://api.yookassa.ru/v3/payments' // Тестовый режим использует тот же URL
+      : 'https://api.yookassa.ru/v3/payments'
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -172,6 +172,13 @@ const Checkout = () => {
       return;
     }
 
+    // Проверка типа заказа - только для опта
+    if (pricing.orderType === 'retail') {
+      toast.info('Для розничных заказов перейдите к выбору доставки');
+      navigate('/delivery');
+      return;
+    }
+
     // Проверка минимальной суммы заказа
     if (!pricing.progressToMinOrder.isReached) {
       const orderTypeLabel = pricing.orderType === 'wholesale' ? 'оптового' : 'розничного';
@@ -193,6 +200,11 @@ const Checkout = () => {
     return null;
   }
 
+  // Проверка типа заказа - только для опта
+  if (pricing.orderType === 'retail') {
+    return null;
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -204,7 +216,7 @@ const Checkout = () => {
             Вернуться в корзину
           </Button>
 
-          <h1 className="text-4xl font-bold mb-8">Оформление заказа</h1>
+          <h1 className="text-4xl font-bold mb-8">Оформление оптового заказа</h1>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Order Form */}

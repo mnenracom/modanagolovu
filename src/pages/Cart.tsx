@@ -83,7 +83,7 @@ const Cart = () => {
       <Header />
       
       <main className="flex-1 py-4 bg-background overflow-x-hidden">
-        <div className="container mx-auto px-3 sm:px-4 max-w-full">
+        <div className="container mx-auto px-3 sm:px-4">
           <div className="flex items-center justify-between mb-4 gap-3 sm:gap-4">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Корзина</h1>
             <Button
