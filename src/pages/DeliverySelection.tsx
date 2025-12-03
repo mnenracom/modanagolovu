@@ -549,21 +549,21 @@ const DeliverySelection = () => {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Сумма товаров:</span>
                       <span className="font-semibold">
-                        {getTotalPrice().toLocaleString()} ₽
+                        {getTotalPrice().toLocaleString('ru-RU')} ₽
                       </span>
                     </div>
                     {deliveryCalculation && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Доставка:</span>
                         <span className="font-semibold">
-                          {deliveryCalculation.cost.toLocaleString()} ₽
+                          {Math.ceil(deliveryCalculation.cost).toLocaleString('ru-RU')} ₽
                         </span>
                       </div>
                     )}
                     <div className="border-t pt-2 flex justify-between text-lg font-bold">
                       <span>Итого:</span>
                       <span className="text-primary">
-                        {((deliveryCalculation?.cost || 0) + getTotalPrice()).toLocaleString()} ₽
+                        {((deliveryCalculation?.cost || 0) + getTotalPrice()).toLocaleString('ru-RU')} ₽
                       </span>
                     </div>
                   </div>
