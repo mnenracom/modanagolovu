@@ -434,15 +434,16 @@ serve(async (req) => {
         // Минимум 1 копейка, чтобы API не отклонил запрос
         const declaredValueInKopecks = declaredValue ? Math.max(1, Math.ceil(declaredValue * 100)) : 1
         
-        // Упрощенный формат запроса без object (используем только mailType и mailCategory)
+        // Формат запроса согласно документации API Почты России:
+        // Используем kebab-case (через дефис) и поле 'mass' вместо 'weight'
         // ВАЖНО: Если declaredValue > 0, обязательно нужен сервис "Объявленная ценность" (ID: 2)
         const tariffRequest: any = {
-          indexFrom: indexFrom, // Индекс отправителя (строка, camelCase)
-          indexTo: indexTo, // Индекс получателя (строка, camelCase)
-          weight: weightInGrams, // Вес в граммах (минимум 100)
-          declaredValue: declaredValueInKopecks, // Объявленная стоимость в копейках (минимум 1)
-          mailType: 'POSTAL_PARCEL', // Тип отправления: POSTAL_PARCEL (посылка)
-          mailCategory: 'ORDINARY', // Категория: ORDINARY (обычная), REGISTERED (с объявленной ценностью)
+          'index-from': indexFrom, // Индекс отправителя (строка, kebab-case)
+          'index-to': indexTo, // Индекс получателя (строка, kebab-case)
+          'mass': weightInGrams, // Вес в граммах (минимум 100) - ВАЖНО: 'mass', а не 'weight'!
+          'declared-value': declaredValueInKopecks, // Объявленная стоимость в копейках (минимум 1)
+          'mail-type': 'POSTAL_PARCEL', // Тип отправления: POSTAL_PARCEL (посылка)
+          'mail-category': 'ORDINARY', // Категория: ORDINARY (обычная), REGISTERED (с объявленной ценностью)
         }
         
         // Добавляем обязательный сервис "Объявленная ценность" если declaredValue > 0
