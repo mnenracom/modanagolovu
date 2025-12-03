@@ -358,15 +358,18 @@ serve(async (req) => {
         })
         
         // Получаем полные данные для отделений, для которых есть только индекс
-        console.log(`🔍 Получаем полные данные для ${officeIndices.length} отделений по индексам`)
+        console.log(`🔍 Получаем полные данные для ${officeIndices.length} отделений по индексам:`, officeIndices)
         const fullOfficeDataPromises = officeIndices.map(async (index: string) => {
           try {
+            console.log(`📮 Запрос данных для отделения ${index}...`)
             const officeResponse = await makePostApiRequest(
               `/1.0/office/${index}`,
               token,
               userAuthKey,
               'GET'
             )
+            
+            console.log(`✅ Получен ответ для отделения ${index}:`, JSON.stringify(officeResponse, null, 2))
             
             if (officeResponse) {
               let type = 'post_office'
@@ -404,19 +407,24 @@ serve(async (req) => {
                 distance: null,
                 type: type,
               }
+            } else {
+              console.warn(`⚠️ Пустой ответ для отделения ${index}`)
             }
-          } catch (error) {
-            console.warn(`⚠️ Не удалось получить данные для отделения ${index}:`, error)
-            // Возвращаем базовый объект с индексом
+          } catch (error: any) {
+            console.error(`❌ Ошибка получения данных для отделения ${index}:`, {
+              message: error.message,
+              stack: error.stack?.substring(0, 200)
+            })
+            // Возвращаем базовый объект с индексом (но не заглушку адреса)
             return {
               id: index,
               index: index,
               postalCode: index,
               name: `Отделение ${index}`,
-              address: `Почтовый индекс: ${index}`,
+              address: '', // Пустой адрес вместо заглушки
               latitude: 0,
               longitude: 0,
-              workingHours: 'Не указано',
+              workingHours: '', // Пустые часы работы
               type: 'post_office'
             }
           }
@@ -427,8 +435,21 @@ serve(async (req) => {
         const fullOfficeData = await Promise.all(fullOfficeDataPromises)
         const validFullOffices = fullOfficeData.filter((office): office is any => office !== null)
         
+        console.log(`✅ Получено ${validFullOffices.length} отделений с полными данными из ${officeIndices.length} запросов`)
+        console.log(`📊 Всего отделений: ${postOfficesWithData.length} с данными + ${validFullOffices.length} полученных по индексам`)
+        
         // Объединяем отделения с полными данными и те, что получили по индексам
         const postOffices = [...postOfficesWithData, ...validFullOffices]
+        
+        // Логируем результат для отладки
+        console.log(`📦 Итоговый список отделений (${postOffices.length} шт.):`, 
+          postOffices.map(o => ({
+            id: o.id,
+            name: o.name,
+            address: o.address?.substring(0, 50) || 'нет адреса',
+            hasAddress: !!o.address && !o.address.startsWith('Почтовый индекс:')
+          }))
+        )
 
         if (postOffices.length === 0) {
           console.warn('API Почты России не вернул отделений для адреса:', fullAddress)

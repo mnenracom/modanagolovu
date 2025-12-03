@@ -472,8 +472,23 @@ const DeliverySelection = () => {
                                   <CheckCircle2 className="h-4 w-4 text-primary" />
                                 )}
                               </div>
-                              <p className="text-sm text-muted-foreground mb-2">{office.address}</p>
-                              {office.workingHours && (
+                              {/* Отображаем адрес только если это не заглушка */}
+                              {office.address && 
+                               !office.address.startsWith('Почтовый индекс:') &&
+                               !office.address.includes('getPostOfficeById') &&
+                               office.address.length > 10 && (
+                                <p className="text-sm text-muted-foreground mb-2">{office.address}</p>
+                              )}
+                              {/* Показываем индекс, если адрес неполный */}
+                              {office.id && office.id.match(/^\d{6}$/) && (
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  Почтовый индекс: {office.id}
+                                </p>
+                              )}
+                              {/* Часы работы только если это не заглушка */}
+                              {office.workingHours && 
+                               !office.workingHours.includes('getPostOfficeById') &&
+                               office.workingHours !== 'Не указано' && (
                                 <p className="text-xs text-muted-foreground mb-2">
                                   Часы работы: {office.workingHours}
                                 </p>
