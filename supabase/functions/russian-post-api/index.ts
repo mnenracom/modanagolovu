@@ -388,7 +388,7 @@ serve(async (req) => {
         }
 
         // Если API не вернул стоимость, возвращаем ошибку (не используем fallback)
-        if (cost === 0 || !cost) {
+        if (cost === 0 || cost === null || cost === undefined) {
           throw new Error('API Почты России не вернул стоимость доставки. Проверьте параметры запроса и настройки API.')
         }
 
@@ -407,21 +407,25 @@ serve(async (req) => {
       } catch (error: any) {
         console.error('Ошибка расчета стоимости доставки:', error)
         
-        // Если ошибка API, используем расчетную стоимость
-        const baseCost = 300
-        const weightCost = Math.ceil(weight / 100) * 50
-        const totalCost = baseCost + weightCost
+        // Проверяем, не связана ли ошибка с SSL/TLS
+        const isSSLError = error.message?.includes('certificate') || 
+                          error.message?.includes('SSL') || 
+                          error.message?.includes('TLS') ||
+                          error.message?.includes('cert') ||
+                          (error.name === 'TypeError' && error.message?.includes('fetch'))
+        
+        const errorMessage = isSSLError 
+          ? 'Проблема подключения к API Почты России. Возможно, проблема с SSL/TLS сертификатом. Рекомендуется использовать прокси-сервер или обратиться в поддержку Почты России.'
+          : error.message || 'Не удалось рассчитать стоимость доставки'
 
         return new Response(
           JSON.stringify({
-            cost: totalCost,
-            deliveryTime: '5-7',
-            type: 'standard',
-            description: 'Стандартная доставка Почтой России (расчетная стоимость)',
-            warning: 'Используется расчетная стоимость. Проверьте настройки API ключа.',
+            error: errorMessage,
+            details: process.env.DENO_ENV === 'development' ? error.toString() : undefined,
+            type: isSSLError ? 'ssl_error' : 'api_error'
           }),
           { 
-            status: 200,
+            status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         )
