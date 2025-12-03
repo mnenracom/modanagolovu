@@ -85,12 +85,11 @@ export const PochtaCartWidget = ({
 
       // Пробуем разные варианты URL скрипта
       const scriptUrls = [
-        'https://widget.pochta.ru/cart/widget/widget.js',
-        'https://widget.pochta.ru/map/widget/widget.js', // Альтернативный URL
-        `https://widget.pochta.ru/cart/?widgetId=${widgetId}&mode=embed`, // Если виджет работает через iframe
+        'https://widget.pochta.ru/cart/widget/widget.js', // Корзинный виджет
       ];
 
       let currentUrlIndex = 0;
+      let currentScript: HTMLScriptElement | null = null;
 
       const tryLoadScript = (urlIndex: number) => {
         if (urlIndex >= scriptUrls.length) {
@@ -100,22 +99,31 @@ export const PochtaCartWidget = ({
           return;
         }
 
-        const script = document.createElement('script');
-        script.id = 'pochta-cart-widget-script';
-        script.src = scriptUrls[urlIndex];
-        script.async = true;
+        // Удаляем предыдущий скрипт, если есть
+        if (currentScript && currentScript.parentNode) {
+          currentScript.parentNode.removeChild(currentScript);
+        }
+
+        currentScript = document.createElement('script');
+        currentScript.id = `pochta-cart-widget-script-${urlIndex}`;
+        currentScript.src = scriptUrls[urlIndex];
+        currentScript.async = true;
+        
+        const script = currentScript; // Сохраняем ссылку для обработчиков
         
         script.onload = () => {
           console.log(`✅ Скрипт корзинного виджета загружен с URL: ${scriptUrls[urlIndex]}`);
           setTimeout(() => {
             if (window.ecomStartCartWidget) {
+              scriptRef.current = script;
               initializeWidget();
             } else {
               // Пробуем следующий URL
-              console.warn('Функция ecomStartCartWidget не найдена, пробуем следующий URL');
+              console.warn('Функция ecomStartCartWidget не найдена, пробуем iframe');
               if (script.parentNode) {
                 script.parentNode.removeChild(script);
               }
+              currentScript = null;
               tryLoadScript(urlIndex + 1);
             }
           }, 500);
@@ -126,20 +134,31 @@ export const PochtaCartWidget = ({
           if (script.parentNode) {
             script.parentNode.removeChild(script);
           }
+          currentScript = null;
           // Пробуем следующий URL
           tryLoadScript(urlIndex + 1);
         };
 
         document.head.appendChild(script);
-        scriptRef.current = script;
       };
 
       // Альтернативный способ через iframe
       const tryIframe = () => {
-        if (!containerRef.current) return;
+        if (!containerRef.current) {
+          setError('Контейнер виджета не найден');
+          setLoading(false);
+          return;
+        }
 
-        console.log('Пробуем загрузить виджет через iframe');
-        const iframeUrl = `https://widget.pochta.ru/cart/?widgetId=${widgetId}&cartValue=${cartValue}&cartWeight=${cartWeight}&mode=embed`;
+        console.log('🔄 Пробуем загрузить виджет через iframe');
+        
+        // Пробуем разные варианты URL для iframe
+        const iframeUrls = [
+          `https://widget.pochta.ru/cart/?widgetId=${widgetId}&cartValue=${cartValue}&cartWeight=${cartWeight}`,
+          `https://widget.pochta.ru/map/?widgetId=${widgetId}&cartValue=${cartValue}&cartWeight=${cartWeight}`,
+        ];
+
+        const iframeUrl = iframeUrls[0]; // Используем первый вариант
         
         containerRef.current.innerHTML = `
           <iframe 
@@ -149,33 +168,41 @@ export const PochtaCartWidget = ({
             height="500"
             style="border: none; min-height: 500px;"
             allow="geolocation"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           ></iframe>
         `;
 
         // Слушаем сообщения от iframe
         const handleMessage = (event: MessageEvent) => {
-          if (!event.origin.includes('pochta.ru')) return;
+          if (!event.origin.includes('pochta.ru') && !event.origin.includes('widget.pochta.ru')) {
+            return;
+          }
 
-          console.log('📨 Сообщение от виджета в iframe:', event.data);
+          console.log('📨 Сообщение от виджета в iframe:', {
+            origin: event.origin,
+            data: event.data
+          });
 
           if (event.data && typeof event.data === 'object') {
             const data = event.data;
             
             // Обрабатываем разные форматы данных
-            if (data.office || data.selectedOffice || data.officeId) {
+            if (data.office || data.selectedOffice || data.officeId || data.id || data.index) {
               const officeData = data.office || data.selectedOffice || data;
+              
+              console.log('✅ Получены данные офиса от виджета:', officeData);
               
               if (onSelect) {
                 onSelect({
                   office: {
-                    id: officeData.officeId || officeData.id || officeData.index || '',
+                    id: officeData.officeId || officeData.id || officeData.index || officeData.postalCode || '',
                     name: officeData.officeName || officeData.name || 'Отделение Почты России',
                     address: officeData.address || officeData.fullAddress || '',
                     postalCode: officeData.postalCode || officeData.index || '',
                     index: officeData.index || officeData.postalCode || '',
                   },
                   cost: data.cost || data.deliveryCost || data.price || 0,
-                  deliveryTime: data.deliveryTime || data.days || '5-7',
+                  deliveryTime: data.deliveryTime || data.days || data.deliveryDays || '5-7',
                 });
               }
               
