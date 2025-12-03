@@ -374,17 +374,26 @@ serve(async (req) => {
         const fullOfficeDataPromises = officeIndices.map(async (index: string) => {
           try {
             console.log(`📮 Запрос данных для отделения ${index}...`)
-            // Пробуем разные варианты endpoint'ов
+            // ПРИОРИТЕТ: POST /postoffice/1.0/objects с массивом ID (как в get_post_office)
             let officeResponse: any = null
             try {
+              // Вариант 1: POST /postoffice/1.0/objects с массивом (ПРИОРИТЕТНЫЙ!)
+              console.log(`🚀 POST /postoffice/1.0/objects с телом [${index}]`)
               officeResponse = await makePostApiRequest(
-                `/postoffice/1.0/objects/${index}`,
+                `/postoffice/1.0/objects`,
                 token,
                 userAuthKey,
-                'GET'
+                'POST',
+                [index] // Массив с одним индексом
               )
-              console.log(`✅ Получен ответ для отделения ${index} через /postoffice/1.0/objects/${index}`)
+              
+              // Если ответ - массив, берем первый элемент
+              if (Array.isArray(officeResponse) && officeResponse.length > 0) {
+                officeResponse = officeResponse[0]
+                console.log(`✅ Получен массив, используем первый элемент`)
+              }
             } catch (error1: any) {
+              console.warn(`⚠️ POST /postoffice/1.0/objects не сработал для ${index}, пробуем GET варианты`)
               try {
                 officeResponse = await makePostApiRequest(
                   `/postoffice/1.0/object/${index}`,
@@ -396,21 +405,31 @@ serve(async (req) => {
               } catch (error2: any) {
                 try {
                   officeResponse = await makePostApiRequest(
-                    `/postoffice/1.0/${index}`,
+                    `/postoffice/1.0/objects/${index}`,
                     token,
                     userAuthKey,
                     'GET'
                   )
-                  console.log(`✅ Получен ответ для отделения ${index} через /postoffice/1.0/${index}`)
+                  console.log(`✅ Получен ответ для отделения ${index} через /postoffice/1.0/objects/${index}`)
                 } catch (error3: any) {
-                  // Последняя попытка со старым endpoint
-                  officeResponse = await makePostApiRequest(
-                    `/1.0/office/${index}`,
-                    token,
-                    userAuthKey,
-                    'GET'
-                  )
-                  console.log(`✅ Получен ответ для отделения ${index} через /1.0/office/${index}`)
+                  try {
+                    officeResponse = await makePostApiRequest(
+                      `/postoffice/1.0/${index}`,
+                      token,
+                      userAuthKey,
+                      'GET'
+                    )
+                    console.log(`✅ Получен ответ для отделения ${index} через /postoffice/1.0/${index}`)
+                  } catch (error4: any) {
+                    // Последняя попытка со старым endpoint
+                    officeResponse = await makePostApiRequest(
+                      `/1.0/office/${index}`,
+                      token,
+                      userAuthKey,
+                      'GET'
+                    )
+                    console.log(`✅ Получен ответ для отделения ${index} через /1.0/office/${index}`)
+                  }
                 }
               }
             }
@@ -741,49 +760,61 @@ serve(async (req) => {
 
       try {
         // Получение информации об отделении по индексу
-        // Согласно документации, правильный endpoint: GET /postoffice/1.0/object/{id}
-        // Но также пробуем POST с телом, если GET не работает
+        // ПРИОРИТЕТ: POST /postoffice/1.0/objects с массивом ID - самый надежный способ
         let officeResponse: any = null
         let lastError: any = null
         
-        // Вариант 1: GET /postoffice/1.0/object/{id} (правильный endpoint согласно документации)
+        // Вариант 1: POST /postoffice/1.0/objects с массивом ID в теле (ПРИОРИТЕТНЫЙ!)
         try {
-          console.log(`🔍 Попытка 1 (GET): /postoffice/1.0/object/${officeId}`)
+          console.log(`🚀 ПРИОРИТЕТ: POST /postoffice/1.0/objects с телом [${officeId}]`)
+          const requestBody = [officeId] // Массив с одним индексом
+          console.log(`📄 Тело запроса (JSON):`, JSON.stringify(requestBody))
+          
           officeResponse = await makePostApiRequest(
-            `/postoffice/1.0/object/${officeId}`,
+            `/postoffice/1.0/objects`,
             token,
             userAuthKey,
-            'GET'
+            'POST',
+            requestBody
           )
-          console.log(`✅ Успешно получены данные через GET /postoffice/1.0/object/${officeId}`)
+          
+          console.log(`✅ Успешно получены данные через POST /postoffice/1.0/objects`)
+          console.log(`📦 Тип ответа:`, typeof officeResponse, Array.isArray(officeResponse) ? '(массив)' : '(объект)')
           console.log(`📦 Полный ответ API:`, JSON.stringify(officeResponse, null, 2))
+          
+          // Если ответ - массив, берем первый элемент
+          if (Array.isArray(officeResponse)) {
+            console.log(`📊 Получен массив из ${officeResponse.length} элементов`)
+            if (officeResponse.length > 0) {
+              officeResponse = officeResponse[0]
+              console.log(`✅ Используем первый элемент массива`)
+            } else {
+              throw new Error('Массив ответа пуст')
+            }
+          } else {
+            console.log(`📦 Ответ - объект, используем как есть`)
+          }
         } catch (error1: any) {
-          console.warn(`⚠️ Вариант 1 (GET) не сработал:`, {
+          console.warn(`⚠️ Вариант 1 (POST /postoffice/1.0/objects) не сработал:`, {
             message: error1.message,
             status: error1.status,
-            response: error1.response?.substring(0, 500)
+            response: error1.response?.substring(0, 1000)
           })
           lastError = error1
           
-          // Вариант 2: POST /postoffice/1.0/objects с массивом ID в теле
+          // Вариант 2: GET /postoffice/1.0/object/{id} (fallback)
           try {
-            console.log(`🔍 Попытка 2 (POST): /postoffice/1.0/objects с телом [${officeId}]`)
+            console.log(`🔍 Попытка 2 (GET): /postoffice/1.0/object/${officeId}`)
             officeResponse = await makePostApiRequest(
-              `/postoffice/1.0/objects`,
+              `/postoffice/1.0/object/${officeId}`,
               token,
               userAuthKey,
-              'POST',
-              [officeId] // Массив ID
+              'GET'
             )
-            console.log(`✅ Успешно получены данные через POST /postoffice/1.0/objects`)
+            console.log(`✅ Успешно получены данные через GET /postoffice/1.0/object/${officeId}`)
             console.log(`📦 Полный ответ API:`, JSON.stringify(officeResponse, null, 2))
-            
-            // Если ответ - массив, берем первый элемент
-            if (Array.isArray(officeResponse) && officeResponse.length > 0) {
-              officeResponse = officeResponse[0]
-            }
           } catch (error2: any) {
-            console.warn(`⚠️ Вариант 2 (POST) не сработал:`, {
+            console.warn(`⚠️ Вариант 2 (GET) не сработал:`, {
               message: error2.message,
               status: error2.status,
               response: error2.response?.substring(0, 500)
@@ -829,7 +860,7 @@ serve(async (req) => {
                 })
                 lastError = error4
                 
-                // Вариант 5: GET /1.0/office/{index} (старый вариант, fallback)
+                // Вариант 5: GET /1.0/office/{index} (старый вариант, последний fallback)
                 try {
                   console.log(`🔍 Попытка 5 (GET): /1.0/office/${officeId} (старый endpoint)`)
                   officeResponse = await makePostApiRequest(
@@ -844,7 +875,7 @@ serve(async (req) => {
                   console.error(`❌ Все варианты endpoint'ов не сработали. Последняя ошибка:`, {
                     message: error5.message,
                     status: error5.status,
-                    response: error5.response?.substring(0, 500),
+                    response: error5.response?.substring(0, 1000),
                     stack: error5.stack?.substring(0, 500)
                   })
                   lastError = error5
