@@ -177,7 +177,8 @@ serve(async (req) => {
   }
 
   try {
-    const { action, apiKey, apiToken, apiSecret, userAuth, address, from, to, weight, declaredValue, officeId } = await req.json()
+    const body = await req.json()
+    const { action, apiKey, apiToken, apiSecret, userAuth, address, from, to, weight, declaredValue, officeId, top } = body
 
     // Токен авторизации приложения обязателен
     if (!apiToken && !apiKey) {
@@ -217,9 +218,11 @@ serve(async (req) => {
 
     // Поиск точек выдачи
     if (action === 'search_post_offices') {
-      if (!address || !address.city) {
+      const searchTop = top || 50; // Получаем top из тела, по умолчанию 50
+
+      if (!address || (!address.city && !address.address)) {
         return new Response(
-          JSON.stringify({ error: 'Не указан адрес для поиска' }),
+          JSON.stringify({ error: 'Не указан адрес или город для поиска' }),
           { 
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -228,100 +231,116 @@ serve(async (req) => {
       }
 
       try {
-        const cityName = address.city.trim()
+        // --- ИСПОЛЬЗУЕМ GET-ENDPOINT ДЛЯ ПОИСКА ПО АДРЕСУ ---
+        const endpoint = '/postoffice/1.0/by-address' // <-- ЭТО ТОТ САМЫЙ URL!
         
-        // --- ИСПРАВЛЕНО: Актуальный эндпоинт POST /1.0/offices/search ---
-        const endpoint = '/1.0/offices/search'
+        const queryParams = new URLSearchParams()
+        
+        // Передаем наиболее полный адрес, который есть
+        const fullAddress = address.address || 
+                           (address.region ? `${address.region}, ${address.city}` : address.city) ||
+                           address.city
+        
+        queryParams.append('address', fullAddress.trim())
+        queryParams.append('top', String(searchTop)) 
+        
+        const url = `${endpoint}?${queryParams.toString()}`
 
-        const requestBody = {
-          city: cityName, // Обязательный параметр
-          ...(address.region && { region: address.region }), // Регион опционально
-          ...(address.postalCode && { postalCode: address.postalCode }), // Индекс опционально
-          // Добавьте типы, которые вы хотите искать (почтовые отделения и постаматы)
-          type: ["POST_OFFICE", "POSTAMAT", "TERMINAL"] 
-          // top: 50 - API вернет не более 50 результатов по умолчанию
-        };
+        console.log(`🔍 Запрос поиска отделений (GET): ${POST_API_BASE_URL}${url}`)
         
-        console.log('Запрос поиска отделений (POST /1.0/offices/search):', JSON.stringify(requestBody))
-        
-        // Используем POST и передаем requestBody
+        // Используем makePostApiRequest (это просто обертка fetch)
+        // Метод: GET, body: undefined
         const officesResponse = await makePostApiRequest(
-          endpoint,
+          url,
           token,
           userAuthKey,
-          'POST', // <-- МЕТОД POST
-          requestBody // <-- ТЕЛО ЗАПРОСА
+          'GET' // <-- МЕТОД GET
         )
 
-        // Преобразуем ответ API в наш формат
-        // API может вернуть массив или объект с полем 'offices'
+        // API возвращает объект с полем 'postoffices' или массив индексов
         let rawOffices: any[] = []
-        if (Array.isArray(officesResponse)) {
+        if (officesResponse && Array.isArray(officesResponse.postoffices)) {
+            // API возвращает список почтовых индексов в виде строк
+            rawOffices = officesResponse.postoffices
+        } else if (Array.isArray(officesResponse)) {
+            // Или массив напрямую
             rawOffices = officesResponse
         } else if (officesResponse && Array.isArray(officesResponse.offices)) {
+            // Или в поле offices
             rawOffices = officesResponse.offices
-        } else if (officesResponse && Array.isArray(officesResponse.items)) {
-            rawOffices = officesResponse.items
         } else {
             rawOffices = []
         }
         
-        // Мы уже отфильтровали по городу в запросе (city: cityName),
-        // но оставим дополнительную фильтрацию для надежности и ограничим количество
+        // ВНИМАНИЕ: Этот endpoint может возвращать ТОЛЬКО список индексов!
+        // Чтобы получить детали (адрес, координаты, часы работы),
+        // нужно вызвать getPostOfficeById для каждого индекса.
+        // Но сначала попробуем обработать то, что получили
+        
         const postOffices = rawOffices
-            .filter((office: any) => {
-              const officeCity = office?.address?.city || office?.city || ''
-              return officeCity.toLowerCase().includes(cityName.toLowerCase())
-            })
-            .slice(0, 50) // Ограничиваем до 50 результатов
-            .map((office: any) => {
-              // Определяем тип точки выдачи
-              let type = 'post_office'
-              if (office.type === 'POSTAMAT' || office.type === 'постамат') {
-                type = 'postamat'
-              } else if (office.type === 'TERMINAL' || office.type === 'терминал') {
-                type = 'terminal'
-              }
-
-              const officeAddress = office.address?.source || 
-                                  office.address?.addressString ||
-                                  `${office.address?.city || ''}, ${office.address?.street || ''}, ${office.address?.house || ''}`.trim() ||
-                                  office.address ||
-                                  'Адрес не указан'
-
-              const officeName = office.name || 
-                                office.description ||
-                                `Отделение Почты России ${office.index || office.postalCode || ''}` ||
-                                'Отделение Почты России'
-
-              const workingHours = office.workTime || 
-                                 office.workingHours ||
-                                 office.schedule ||
-                                 'Не указано'
-
+          .slice(0, searchTop) // Ограничиваем количество
+          .map((office: any) => {
+            // Если это просто строка (индекс), создаем базовый объект
+            if (typeof office === 'string') {
               return {
-                id: office.index || office.postalCode || office.id || `${office.latitude}_${office.longitude}`,
-                name: officeName,
-                address: officeAddress,
-                latitude: office.latitude || office.coordinates?.latitude || 0,
-                longitude: office.longitude || office.coordinates?.longitude || 0,
-                workingHours: workingHours,
-                distance: office.distance || null,
-                type: type,
+                id: office,
+                index: office,
+                postalCode: office,
+                name: `Отделение ${office}`,
+                address: `Почтовый индекс: ${office}`,
+                latitude: 0,
+                longitude: 0,
+                workingHours: 'Получение деталей через getPostOfficeById',
+                type: 'post_office'
               }
-            })
+            }
+            
+            // Если это объект с данными, обрабатываем как обычно
+            let type = 'post_office'
+            if (office.type === 'POSTAMAT' || office.type === 'постамат') {
+              type = 'postamat'
+            } else if (office.type === 'TERMINAL' || office.type === 'терминал') {
+              type = 'terminal'
+            }
 
-        // Если не нашли отделения через API, возвращаем пустой список
-        // НЕ возвращаем тестовые данные - это мешает отладке
+            const officeAddress = office.address?.source || 
+                                office.address?.addressString ||
+                                `${office.address?.city || ''}, ${office.address?.street || ''}, ${office.address?.house || ''}`.trim() ||
+                                office.address ||
+                                'Адрес не указан'
+
+            const officeName = office.name || 
+                              office.description ||
+                              `Отделение Почты России ${office.index || office.postalCode || ''}` ||
+                              'Отделение Почты России'
+
+            const workingHours = office.workTime || 
+                               office.workingHours ||
+                               office.schedule ||
+                               'Не указано'
+
+            return {
+              id: office.index || office.postalCode || office.id || `${office.latitude}_${office.longitude}`,
+              index: office.index || office.postalCode,
+              postalCode: office.postalCode || office.index,
+              name: officeName,
+              address: officeAddress,
+              latitude: office.latitude || office.coordinates?.latitude || 0,
+              longitude: office.longitude || office.coordinates?.longitude || 0,
+              workingHours: workingHours,
+              distance: office.distance || null,
+              type: type,
+            }
+          })
+
         if (postOffices.length === 0) {
-          console.warn('API Почты России не вернул отделений для города:', cityName)
-          // Возвращаем пустой список, чтобы пользователь понял, что нужно проверить настройки
+          console.warn('API Почты России не вернул отделений для адреса:', fullAddress)
           return new Response(
             JSON.stringify({ 
               postOffices: [],
               error: 'Отделения не найдены. Проверьте правильность названия города и настройки API ключа.',
               debug: {
-                city: cityName,
+                address: fullAddress,
                 hasApiKey: !!apiKey,
                 hasToken: !!token,
               }
