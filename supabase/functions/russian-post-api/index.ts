@@ -435,13 +435,21 @@ serve(async (req) => {
         const declaredValueInKopecks = declaredValue ? Math.max(1, Math.ceil(declaredValue * 100)) : 1
         
         // Упрощенный формат запроса без object (используем только mailType и mailCategory)
-        const tariffRequest = {
+        // ВАЖНО: Если declaredValue > 0, обязательно нужен сервис "Объявленная ценность" (ID: 2)
+        const tariffRequest: any = {
           indexFrom: indexFrom, // Индекс отправителя (строка, camelCase)
           indexTo: indexTo, // Индекс получателя (строка, camelCase)
           weight: weightInGrams, // Вес в граммах (минимум 100)
           declaredValue: declaredValueInKopecks, // Объявленная стоимость в копейках (минимум 1)
           mailType: 'POSTAL_PARCEL', // Тип отправления: POSTAL_PARCEL (посылка)
           mailCategory: 'ORDINARY', // Категория: ORDINARY (обычная), REGISTERED (с объявленной ценностью)
+        }
+        
+        // Добавляем обязательный сервис "Объявленная ценность" если declaredValue > 0
+        if (declaredValueInKopecks > 0) {
+          tariffRequest.service = [
+            { id: 2 } // Сервис "Объявленная ценность" (обязателен при declaredValue > 0)
+          ]
         }
 
         console.log('Запрос расчета тарифа:', JSON.stringify(tariffRequest))
