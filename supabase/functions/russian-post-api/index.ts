@@ -228,116 +228,52 @@ serve(async (req) => {
       }
 
       try {
-        // Поиск отделений по адресу через API Почты России
-        // Актуальный эндпоинт: POST /1.0/offices/search
-        // Согласно документации: https://otpravka.pochta.ru/specification
         const cityName = address.city.trim()
         
-        console.log('Запрос поиска отделений:', {
-          city: cityName,
-          region: address.region,
-          postalCode: address.postalCode
-        })
+        // --- ИСПРАВЛЕНО: Актуальный эндпоинт POST /1.0/offices/search ---
+        const endpoint = '/1.0/offices/search'
+
+        const requestBody = {
+          city: cityName, // Обязательный параметр
+          ...(address.region && { region: address.region }), // Регион опционально
+          ...(address.postalCode && { postalCode: address.postalCode }), // Индекс опционально
+          // Добавьте типы, которые вы хотите искать (почтовые отделения и постаматы)
+          type: ["POST_OFFICE", "POSTAMAT", "TERMINAL"] 
+          // top: 50 - API вернет не более 50 результатов по умолчанию
+        };
         
-        // Тело запроса для поиска отделений
-        // API ожидает POST запрос с телом, содержащим фильтры
-        // Согласно документации API Почты России, формат может быть:
-        // 1. { city: "...", region: "...", postalCode: "..." }
-        // 2. Или массив объектов [{ city: "...", ... }]
-        // Попробуем оба варианта, начнем с объекта
-        const searchRequestBody = {
-          city: cityName,
-          ...(address.region && { region: address.region }),
-          ...(address.postalCode && { postalCode: address.postalCode }),
-          // Можно добавить фильтры по типу отделений
-          // type: ['POST_OFFICE', 'POSTOMAT'] // или оставить пустым для всех типов
-        }
+        console.log('Запрос поиска отделений (POST /1.0/offices/search):', JSON.stringify(requestBody))
         
-        console.log('📦 Тело запроса для поиска:', JSON.stringify(searchRequestBody))
-        
-        // Используем правильный endpoint для поиска отделений
-        // POST /1.0/offices/search
-        // ВАЖНО: НЕ используем старые endpoints:
-        // ❌ /1.0/office?filter=ALL&top=50 (GET)
-        // ❌ /postoffice/1.0/by-address (GET)
-        // ✅ /1.0/offices/search (POST)
-        console.log('🚀 Вызываем makePostApiRequest с правильным endpoint: /1.0/offices/search')
-        console.log('📋 Параметры поиска:', JSON.stringify(searchRequestBody))
-        
-        let officesResponse: any
-        let lastError: any = null
-        
-        // Пробуем разные варианты endpoints, если основной не работает
-        const endpointsToTry = [
-          '/1.0/offices/search',           // Основной endpoint (рекомендуемый)
-          '/postoffice/1.0/search',        // Альтернативный вариант
-          '/1.0/postoffice/search',       // Еще один вариант
-        ]
-        
-        for (const endpoint of endpointsToTry) {
-          try {
-            console.log(`🔄 Пробуем endpoint: ${endpoint}`)
-            officesResponse = await makePostApiRequest(
-              endpoint,
-              token,
-              userAuthKey,
-              'POST',
-              searchRequestBody
-            )
-            console.log(`✅ Успешно использован endpoint: ${endpoint}`)
-            break // Если успешно, выходим из цикла
-          } catch (error: any) {
-            console.warn(`⚠️ Endpoint ${endpoint} не сработал:`, error.message)
-            lastError = error
-            // Продолжаем пробовать следующий endpoint
-            continue
-          }
-        }
-        
-        // Если все endpoints не сработали, выбрасываем последнюю ошибку
-        if (!officesResponse) {
-          throw lastError || new Error('Все варианты endpoints не сработали')
-        }
+        // Используем POST и передаем requestBody
+        const officesResponse = await makePostApiRequest(
+          endpoint,
+          token,
+          userAuthKey,
+          'POST', // <-- МЕТОД POST
+          requestBody // <-- ТЕЛО ЗАПРОСА
+        )
 
         // Преобразуем ответ API в наш формат
-        let postOffices: any[] = []
-        
-        // API может вернуть массив напрямую или объект с полем offices/items/results
-        let officesArray: any[] = []
+        // API может вернуть массив или объект с полем 'offices'
+        let rawOffices: any[] = []
         if (Array.isArray(officesResponse)) {
-          officesArray = officesResponse
-        } else if (officesResponse && typeof officesResponse === 'object') {
-          // Пробуем найти массив в разных возможных полях ответа
-          officesArray = officesResponse.offices || 
-                        officesResponse.items || 
-                        officesResponse.results || 
-                        officesResponse.data ||
-                        officesResponse.postOffices ||
-                        []
+            rawOffices = officesResponse
+        } else if (officesResponse && Array.isArray(officesResponse.offices)) {
+            rawOffices = officesResponse.offices
+        } else if (officesResponse && Array.isArray(officesResponse.items)) {
+            rawOffices = officesResponse.items
+        } else {
+            rawOffices = []
         }
         
-        if (officesArray.length > 0) {
-          // Фильтруем по городу, если API вернул все отделения
-          postOffices = officesArray
+        // Мы уже отфильтровали по городу в запросе (city: cityName),
+        // но оставим дополнительную фильтрацию для надежности и ограничим количество
+        const postOffices = rawOffices
             .filter((office: any) => {
-              // Проверяем, что отделение находится в нужном городе
               const officeCity = office?.address?.city || office?.city || ''
-              const officeRegion = office?.address?.region || office?.region || ''
-              
-              // Сравниваем название города (без учета регистра)
-              const matchesCity = officeCity.toLowerCase().includes(cityName.toLowerCase()) ||
-                                 cityName.toLowerCase().includes(officeCity.toLowerCase())
-              
-              // Если указан регион, проверяем и его
-              if (address.region) {
-                const matchesRegion = officeRegion.toLowerCase().includes(address.region.toLowerCase()) ||
-                                    address.region.toLowerCase().includes(officeRegion.toLowerCase())
-                return matchesCity && matchesRegion
-              }
-              
-              return matchesCity
+              return officeCity.toLowerCase().includes(cityName.toLowerCase())
             })
-            .slice(0, 20) // Ограничиваем до 20 результатов
+            .slice(0, 50) // Ограничиваем до 50 результатов
             .map((office: any) => {
               // Определяем тип точки выдачи
               let type = 'post_office'
@@ -347,20 +283,17 @@ serve(async (req) => {
                 type = 'terminal'
               }
 
-              // Формируем адрес
               const officeAddress = office.address?.source || 
                                   office.address?.addressString ||
                                   `${office.address?.city || ''}, ${office.address?.street || ''}, ${office.address?.house || ''}`.trim() ||
                                   office.address ||
                                   'Адрес не указан'
 
-              // Формируем название
               const officeName = office.name || 
                                 office.description ||
                                 `Отделение Почты России ${office.index || office.postalCode || ''}` ||
                                 'Отделение Почты России'
 
-              // Рабочие часы
               const workingHours = office.workTime || 
                                  office.workingHours ||
                                  office.schedule ||
@@ -377,7 +310,6 @@ serve(async (req) => {
                 type: type,
               }
             })
-        }
 
         // Если не нашли отделения через API, возвращаем пустой список
         // НЕ возвращаем тестовые данные - это мешает отладке
