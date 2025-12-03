@@ -619,9 +619,43 @@ serve(async (req) => {
         // - mailType: тип отправления (POSTAL_PARCEL)
         // - mailCategory: категория (ORDINARY)
         
+        // КРИТИЧЕСКОЕ ЛОГИРОВАНИЕ: Логируем входящие данные для диагностики
+        console.log('🔍 ВХОДЯЩИЕ ДАННЫЕ calculate_delivery:')
+        console.log('🔍 from объект:', JSON.stringify(from, null, 2))
+        console.log('🔍 to объект:', JSON.stringify(to, null, 2))
+        console.log('🔍 from.postalCode:', from.postalCode)
+        console.log('🔍 to.postalCode:', to.postalCode)
+        console.log('🔍 from.index:', (from as any).index)
+        console.log('🔍 to.index:', (to as any).index)
+        
         // Получаем индексы (должны быть строками)
-        const indexFrom = String(from.postalCode || '101000')
-        const indexTo = String(to.postalCode || '101000')
+        // Пробуем разные варианты полей для индекса отправителя
+        const indexFrom = String(
+          from.postalCode || 
+          (from as any).index || 
+          (from as any).postal_code ||
+          '101000' // Fallback на Москву
+        )
+        
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Получаем индекс получателя из правильного объекта `to`
+        // Пробуем разные варианты полей для индекса получателя
+        const indexTo = String(
+          to.postalCode || 
+          (to as any).index || 
+          (to as any).postal_code ||
+          (to as any).postalCode || // Дополнительная проверка
+          '101000' // Fallback на Москву (только если индекс не указан)
+        )
+        
+        // КРИТИЧЕСКАЯ ПРОВЕРКА: Убеждаемся, что индексы разные
+        console.log('🔍 ИЗВЛЕЧЕННЫЕ ИНДЕКСЫ:')
+        console.log('🔍 indexFrom (отправитель):', indexFrom)
+        console.log('🔍 indexTo (получатель):', indexTo)
+        
+        if (indexFrom === indexTo) {
+          console.warn('⚠️ ВНИМАНИЕ: indexFrom и indexTo одинаковые! Это может быть ошибка.')
+          console.warn('⚠️ Проверьте, что to.postalCode правильно передается с фронтенда.')
+        }
         
         // Вес должен быть минимум 100 граммов для надежности
         const weightInGrams = Math.max(100, Math.ceil(weight))
