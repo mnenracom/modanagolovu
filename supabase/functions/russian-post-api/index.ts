@@ -158,7 +158,8 @@ async function makePostApiRequest(
     const contentType = response.headers.get('content-type')
     if (contentType && contentType.includes('application/json')) {
       const data = await response.json()
-      console.log('Успешный ответ от API, размер данных:', JSON.stringify(data).length)
+      console.log('✅ Успешный ответ API Почты России (полный JSON):', JSON.stringify(data, null, 2))
+      console.log('📊 Размер данных:', JSON.stringify(data).length, 'символов')
       return data
     } else {
       // Если ответ не JSON, читаем текст для отладки
@@ -487,41 +488,69 @@ serve(async (req) => {
           tariffRequest
         )
 
+        // Логируем полный ответ API для отладки
+        console.log('📦 Полный ответ API Почты России (calculate_delivery):', JSON.stringify(tariffResponse, null, 2))
+        
+        // Проверяем наличие ошибок в ответе
+        if (!tariffResponse) {
+          throw new Error('API Почты России вернул пустой ответ')
+        }
+        
+        if (tariffResponse.error || tariffResponse.errors) {
+          const errorMessage = tariffResponse.error || 
+                              (Array.isArray(tariffResponse.errors) ? tariffResponse.errors.join(', ') : JSON.stringify(tariffResponse.errors))
+          console.error('❌ Ошибка в ответе API:', errorMessage)
+          throw new Error(`API Почты России вернул ошибку: ${errorMessage}`)
+        }
+
         // Извлекаем стоимость из ответа
+        // Проверяем разные варианты названий полей (kebab-case и camelCase)
         let cost = 0
         let deliveryTime = '5-7'
         let type = 'standard'
         let description = 'Стандартная доставка Почтой России'
 
-        if (tariffResponse) {
-          // Стоимость может быть в разных полях в зависимости от версии API
-          cost = tariffResponse.total || 
-                 tariffResponse.totalRate || 
-                 tariffResponse.totalVat || 
-                 tariffResponse.deliveryCost ||
-                 tariffResponse.cost ||
-                 0
+        // Стоимость может быть в разных полях в зависимости от версии API
+        // Проверяем как kebab-case, так и camelCase варианты
+        cost = tariffResponse['total-rate'] ||      // kebab-case
+               tariffResponse.totalRate ||          // camelCase
+               tariffResponse['total'] ||           // kebab-case
+               tariffResponse.total ||              // camelCase
+               tariffResponse['total-vat'] ||       // kebab-case
+               tariffResponse.totalVat ||           // camelCase
+               tariffResponse['delivery-cost'] ||   // kebab-case
+               tariffResponse.deliveryCost ||       // camelCase
+               tariffResponse.cost ||               // просто cost
+               0
 
-          // Срок доставки
-          if (tariffResponse.deliveryTime) {
-            deliveryTime = `${tariffResponse.deliveryTime.min || 5}-${tariffResponse.deliveryTime.max || 7}`
-          } else if (tariffResponse.days) {
-            deliveryTime = `${tariffResponse.days.min || 5}-${tariffResponse.days.max || 7}`
+        console.log('💰 Извлеченная стоимость:', cost, 'копеек')
+
+        // Срок доставки
+        const deliveryTimeObj = tariffResponse['delivery-time'] || 
+                               tariffResponse.deliveryTime ||
+                               tariffResponse.days
+        if (deliveryTimeObj) {
+          if (typeof deliveryTimeObj === 'object') {
+            deliveryTime = `${deliveryTimeObj.min || 5}-${deliveryTimeObj.max || 7}`
+          } else {
+            deliveryTime = String(deliveryTimeObj)
           }
-
-          // Тип доставки
-          if (tariffResponse.mailType === 'EMS') {
-            type = 'express'
-          } else if (tariffResponse.mailType === 'FIRST_CLASS') {
-            type = 'first_class'
-          }
-
-          description = tariffResponse.description || description
         }
 
-        // Если API не вернул стоимость, возвращаем ошибку (не используем fallback)
+        // Тип доставки
+        const mailType = tariffResponse['mail-type'] || tariffResponse.mailType
+        if (mailType === 'EMS') {
+          type = 'express'
+        } else if (mailType === 'FIRST_CLASS') {
+          type = 'first_class'
+        }
+
+        description = tariffResponse.description || description
+
+        // Если API не вернул стоимость, возвращаем ошибку с деталями
         if (cost === 0 || cost === null || cost === undefined) {
-          throw new Error('API Почты России не вернул стоимость доставки. Проверьте параметры запроса и настройки API.')
+          console.error('❌ API не вернул стоимость доставки. Доступные поля в ответе:', Object.keys(tariffResponse))
+          throw new Error('API Почты России не вернул стоимость доставки. Возможные причины: доставка невозможна между указанными индексами, неправильный тип отправления, или ошибка в параметрах запроса. Проверьте логи для деталей.')
         }
 
         return new Response(
