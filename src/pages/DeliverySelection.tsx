@@ -528,59 +528,83 @@ const DeliverySelection = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* Информация о выбранном отделении */}
-                    <div className="pb-4 border-b">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="pb-4 border-b space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
+                          <MapPin className="h-5 w-5 text-primary" />
+                        </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm mb-1">{selectedOffice.name}</p>
-                          {/* Отображаем адрес, если он есть и не является заглушкой */}
+                          <h3 className="font-semibold text-base mb-2">{selectedOffice.name}</h3>
+                          
+                          {/* Полный адрес - главная информация */}
                           {selectedOffice.address && 
                            !selectedOffice.address.startsWith('Почтовый индекс:') &&
                            !selectedOffice.address.includes('getPostOfficeById') &&
-                           selectedOffice.address.length > 5 && (
-                            <p className="text-sm text-muted-foreground mb-1 break-words">
-                              {selectedOffice.address}
-                            </p>
+                           selectedOffice.address.length > 5 ? (
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium text-foreground break-words">
+                                {selectedOffice.address}
+                              </p>
+                              {selectedOffice.id && selectedOffice.id.match(/^\d{6}$/) && (
+                                <p className="text-xs text-muted-foreground">
+                                  Индекс: {selectedOffice.id}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            /* Если адрес неполный, показываем хотя бы индекс */
+                            selectedOffice.id && selectedOffice.id.match(/^\d{6}$/) && (
+                              <div className="space-y-1">
+                                <p className="text-sm text-muted-foreground">
+                                  Почтовый индекс: <span className="font-medium text-foreground">{selectedOffice.id}</span>
+                                </p>
+                                <p className="text-xs text-muted-foreground italic">
+                                  Адрес будет указан при оформлении заказа
+                                </p>
+                              </div>
+                            )
                           )}
-                          {/* Если адрес неполный, показываем хотя бы индекс */}
-                          {selectedOffice.id && selectedOffice.id.match(/^\d{6}$/) && (
-                            <p className="text-xs text-muted-foreground">
-                              Почтовый индекс: {selectedOffice.id}
-                            </p>
-                          )}
+                          
                           {/* Часы работы, если доступны */}
                           {selectedOffice.workingHours && 
                            !selectedOffice.workingHours.includes('getPostOfficeById') &&
-                           selectedOffice.workingHours !== 'Не указано' && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Часы работы: {selectedOffice.workingHours}
-                            </p>
+                           selectedOffice.workingHours !== 'Не указано' &&
+                           selectedOffice.workingHours.trim().length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-border/50">
+                              <p className="text-xs text-muted-foreground">
+                                <span className="font-medium">Часы работы:</span> {selectedOffice.workingHours}
+                              </p>
+                            </div>
                           )}
                         </div>
                       </div>
                     </div>
                     
                     {/* Стоимость и срок доставки */}
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Стоимость доставки:</span>
-                      <span className="text-2xl font-bold text-primary">
-                        {Math.round(deliveryCalculation.cost).toLocaleString('ru-RU', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0
-                        })} ₽
-                      </span>
+                    <div className="space-y-3 pt-2">
+                      <div className="flex justify-between items-center py-2 bg-muted/30 rounded-lg px-4">
+                        <span className="text-base font-medium text-foreground">Стоимость доставки:</span>
+                        <span className="text-2xl font-bold text-primary">
+                          {Math.round(deliveryCalculation.cost).toLocaleString('ru-RU', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0
+                          })} ₽
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 bg-muted/30 rounded-lg px-4">
+                        <span className="text-base font-medium text-foreground">Срок доставки:</span>
+                        <span className="text-lg font-semibold text-foreground">
+                          {deliveryCalculation.deliveryTime.includes('-') 
+                            ? `${deliveryCalculation.deliveryTime} дней`
+                            : `${deliveryCalculation.deliveryTime} дней`}
+                        </span>
+                      </div>
+                      {deliveryCalculation.description && (
+                        <div className="pt-2">
+                          <p className="text-sm text-muted-foreground italic">{deliveryCalculation.description}</p>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Срок доставки:</span>
-                      <span className="font-semibold">
-                        {deliveryCalculation.deliveryTime.includes('-') 
-                          ? `${deliveryCalculation.deliveryTime} дней`
-                          : `${deliveryCalculation.deliveryTime} дней`}
-                      </span>
-                    </div>
-                    {deliveryCalculation.description && (
-                      <p className="text-sm text-muted-foreground">{deliveryCalculation.description}</p>
-                    )}
                     <Button 
                       id="payment-button"
                       data-payment-button
