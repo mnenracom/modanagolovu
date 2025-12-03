@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Loader2, MapPin, AlertCircle } from 'lucide-react';
 
 // Расширяем Window для функции виджета
@@ -241,7 +242,9 @@ export const RussianPostWidget = ({
 
         <Alert className="mt-4">
           <AlertDescription className="text-sm">
-            Выберите отделение Почты России на карте выше. После выбора отделение будет автоматически добавлено в заказ.
+            <p className="mb-2">
+              Выберите отделение Почты России на карте выше. После выбора отделения нажмите кнопку "Подтвердить выбор" ниже.
+            </p>
             {city && (
               <span className="block mt-1 text-xs text-muted-foreground">
                 Город: {city}{region ? `, ${region}` : ''}
@@ -249,6 +252,80 @@ export const RussianPostWidget = ({
             )}
           </AlertDescription>
         </Alert>
+
+        {/* Кнопка для ручного подтверждения выбора отделения */}
+        {/* Виджет может не вызывать callback автоматически, поэтому добавляем кнопку */}
+        <div className="mt-4 flex gap-2">
+          <Button
+            onClick={() => {
+              console.log('🔘 Кнопка "Подтвердить выбор" нажата');
+              
+              // Пытаемся получить данные из виджета через глобальные переменные или DOM
+              const container = document.getElementById('ecom-widget');
+              if (container) {
+                // Проверяем, есть ли в контейнере информация о выбранном отделении
+                const widgetIframe = container.querySelector('iframe');
+                
+                // Пробуем получить данные из глобальных переменных виджета
+                const widgetData = (window as any).ecomWidgetData || (window as any).pochtaWidgetData;
+                
+                if (widgetData) {
+                  console.log('✅ Найдены данные виджета в глобальных переменных:', widgetData);
+                  if (onOfficeSelected) {
+                    onOfficeSelected({
+                      id: widgetData.id || widgetData.officeId || widgetData.index || '',
+                      name: widgetData.name || widgetData.officeName || 'Отделение Почты России',
+                      address: widgetData.address || widgetData.officeAddress || '',
+                      postalCode: widgetData.postalCode || widgetData.index || '',
+                      index: widgetData.index || widgetData.postalCode || '',
+                    });
+                  }
+                  return;
+                }
+                
+                // Если данных нет, используем данные из панели виджета (если она видна)
+                // Виджет обычно показывает панель с информацией об отделении
+                const infoPanel = container.querySelector('[class*="office"]') || 
+                                 container.querySelector('[class*="selected"]') ||
+                                 document.querySelector('[class*="pochta-office"]');
+                
+                if (infoPanel) {
+                  console.log('✅ Найдена панель с информацией об отделении');
+                  // Пытаемся извлечь данные из текста панели
+                  const panelText = infoPanel.textContent || '';
+                  const postalCodeMatch = panelText.match(/\d{6}/);
+                  const addressMatch = panelText.match(/г\s+[\w\s]+|ул\s+[\w\s]+/);
+                  
+                  if (postalCodeMatch || addressMatch) {
+                    const officeData = {
+                      id: postalCodeMatch?.[0] || 'unknown',
+                      name: 'Отделение Почты России',
+                      address: addressMatch?.[0] || panelText.substring(0, 100),
+                      postalCode: postalCodeMatch?.[0] || '',
+                      index: postalCodeMatch?.[0] || '',
+                    };
+                    
+                    console.log('📦 Извлечены данные из панели:', officeData);
+                    
+                    if (onOfficeSelected) {
+                      onOfficeSelected(officeData);
+                    }
+                    return;
+                  }
+                }
+                
+                // Если ничего не найдено, просим пользователя выбрать отделение
+                console.warn('⚠️ Не удалось автоматически определить выбранное отделение');
+                setError('Пожалуйста, убедитесь, что вы выбрали отделение на карте. Если отделение выбрано, попробуйте обновить страницу и выбрать снова.');
+              }
+            }}
+            className="w-full"
+            size="lg"
+          >
+            <MapPin className="mr-2 h-4 w-4" />
+            Подтвердить выбор отделения
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

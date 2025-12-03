@@ -11,7 +11,8 @@ const corsHeaders = {
 }
 
 // Базовый URL API Почты России
-const POST_API_BASE_URL = 'https://otpravka.pochta.ru'
+// Используем otpravka-api.pochta.ru согласно документации
+const POST_API_BASE_URL = 'https://otpravka-api.pochta.ru'
 
 interface AddressData {
   city: string;
