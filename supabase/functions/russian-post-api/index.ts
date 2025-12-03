@@ -124,14 +124,26 @@ async function makePostApiRequest(
     console.log(`Ответ API: ${response.status} ${response.statusText}`)
     console.log('Заголовки ответа:', Object.fromEntries(response.headers.entries()))
     
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`Ошибка API: ${response.status}`, errorText.substring(0, 500))
-      
-      // Специальная обработка ошибки 407 (неправильный endpoint или метод)
-      if (response.status === 407) {
-        throw new Error('Ошибка 407: Неправильный endpoint или метод API. Возможно, API Почты России изменился. Проверьте актуальную документацию: https://otpravka.pochta.ru/specification')
-      }
+          if (!response.ok) {
+            const errorText = await response.text()
+            const errorPreview = errorText.substring(0, 1000)
+            console.error(`❌ Ошибка API: ${response.status} ${response.statusText}`)
+            console.error(`📄 Тело ошибки (первые 1000 символов):`, errorPreview)
+            console.error(`📋 Заголовки ответа:`, Object.fromEntries(response.headers.entries()))
+            
+            // Специальная обработка ошибки 407 (неправильный endpoint или метод)
+            if (response.status === 407) {
+              const errorDetails = {
+                status: response.status,
+                statusText: response.statusText,
+                endpoint: endpoint,
+                method: method,
+                errorBody: errorPreview,
+                suggestion: 'Попробуйте другой endpoint или метод (GET/POST)'
+              }
+              console.error(`❌ Детали ошибки 407:`, JSON.stringify(errorDetails, null, 2))
+              throw new Error(`Ошибка 407: Неправильный endpoint или метод API. Endpoint: ${method} ${endpoint}, Ответ: ${errorPreview.substring(0, 200)}`)
+            }
       
       // Специальная обработка ошибки 401 (неправильный токен)
       if (response.status === 401) {
@@ -729,66 +741,115 @@ serve(async (req) => {
 
       try {
         // Получение информации об отделении по индексу
-        // Пробуем разные варианты endpoint'ов, так как API может использовать разные пути
+        // Согласно документации, правильный endpoint: GET /postoffice/1.0/object/{id}
+        // Но также пробуем POST с телом, если GET не работает
         let officeResponse: any = null
         let lastError: any = null
         
-        // Вариант 1: /postoffice/1.0/objects/{index} (наиболее вероятный, по аналогии с /postoffice/1.0/by-address)
+        // Вариант 1: GET /postoffice/1.0/object/{id} (правильный endpoint согласно документации)
         try {
-          console.log(`🔍 Попытка 1: /postoffice/1.0/objects/${officeId}`)
+          console.log(`🔍 Попытка 1 (GET): /postoffice/1.0/object/${officeId}`)
           officeResponse = await makePostApiRequest(
-            `/postoffice/1.0/objects/${officeId}`,
+            `/postoffice/1.0/object/${officeId}`,
             token,
             userAuthKey,
             'GET'
           )
-          console.log(`✅ Успешно получены данные через /postoffice/1.0/objects/${officeId}`)
+          console.log(`✅ Успешно получены данные через GET /postoffice/1.0/object/${officeId}`)
+          console.log(`📦 Полный ответ API:`, JSON.stringify(officeResponse, null, 2))
         } catch (error1: any) {
-          console.warn(`⚠️ Вариант 1 не сработал:`, error1.message)
+          console.warn(`⚠️ Вариант 1 (GET) не сработал:`, {
+            message: error1.message,
+            status: error1.status,
+            response: error1.response?.substring(0, 500)
+          })
           lastError = error1
           
-          // Вариант 2: /postoffice/1.0/object/{index} (единственное число)
+          // Вариант 2: POST /postoffice/1.0/objects с массивом ID в теле
           try {
-            console.log(`🔍 Попытка 2: /postoffice/1.0/object/${officeId}`)
+            console.log(`🔍 Попытка 2 (POST): /postoffice/1.0/objects с телом [${officeId}]`)
             officeResponse = await makePostApiRequest(
-              `/postoffice/1.0/object/${officeId}`,
+              `/postoffice/1.0/objects`,
               token,
               userAuthKey,
-              'GET'
+              'POST',
+              [officeId] // Массив ID
             )
-            console.log(`✅ Успешно получены данные через /postoffice/1.0/object/${officeId}`)
+            console.log(`✅ Успешно получены данные через POST /postoffice/1.0/objects`)
+            console.log(`📦 Полный ответ API:`, JSON.stringify(officeResponse, null, 2))
+            
+            // Если ответ - массив, берем первый элемент
+            if (Array.isArray(officeResponse) && officeResponse.length > 0) {
+              officeResponse = officeResponse[0]
+            }
           } catch (error2: any) {
-            console.warn(`⚠️ Вариант 2 не сработал:`, error2.message)
+            console.warn(`⚠️ Вариант 2 (POST) не сработал:`, {
+              message: error2.message,
+              status: error2.status,
+              response: error2.response?.substring(0, 500)
+            })
             lastError = error2
             
-            // Вариант 3: /postoffice/1.0/{index} (прямой путь)
+            // Вариант 3: GET /postoffice/1.0/objects/{id} (множественное число)
             try {
-              console.log(`🔍 Попытка 3: /postoffice/1.0/${officeId}`)
+              console.log(`🔍 Попытка 3 (GET): /postoffice/1.0/objects/${officeId}`)
               officeResponse = await makePostApiRequest(
-                `/postoffice/1.0/${officeId}`,
+                `/postoffice/1.0/objects/${officeId}`,
                 token,
                 userAuthKey,
                 'GET'
               )
-              console.log(`✅ Успешно получены данные через /postoffice/1.0/${officeId}`)
+              console.log(`✅ Успешно получены данные через GET /postoffice/1.0/objects/${officeId}`)
+              console.log(`📦 Полный ответ API:`, JSON.stringify(officeResponse, null, 2))
             } catch (error3: any) {
-              console.warn(`⚠️ Вариант 3 не сработал:`, error3.message)
+              console.warn(`⚠️ Вариант 3 (GET) не сработал:`, {
+                message: error3.message,
+                status: error3.status,
+                response: error3.response?.substring(0, 500)
+              })
               lastError = error3
               
-              // Вариант 4: /1.0/office/{index} (старый вариант, на случай если он все-таки работает)
+              // Вариант 4: POST /postoffice/1.0/object с телом {id: officeId}
               try {
-                console.log(`🔍 Попытка 4: /1.0/office/${officeId}`)
+                console.log(`🔍 Попытка 4 (POST): /postoffice/1.0/object с телом {id: ${officeId}}`)
                 officeResponse = await makePostApiRequest(
-                  `/1.0/office/${officeId}`,
+                  `/postoffice/1.0/object`,
                   token,
                   userAuthKey,
-                  'GET'
+                  'POST',
+                  { id: officeId, index: officeId }
                 )
-                console.log(`✅ Успешно получены данные через /1.0/office/${officeId}`)
+                console.log(`✅ Успешно получены данные через POST /postoffice/1.0/object`)
+                console.log(`📦 Полный ответ API:`, JSON.stringify(officeResponse, null, 2))
               } catch (error4: any) {
-                console.error(`❌ Все варианты endpoint'ов не сработали. Последняя ошибка:`, error4.message)
+                console.warn(`⚠️ Вариант 4 (POST) не сработал:`, {
+                  message: error4.message,
+                  status: error4.status,
+                  response: error4.response?.substring(0, 500)
+                })
                 lastError = error4
-                throw error4
+                
+                // Вариант 5: GET /1.0/office/{index} (старый вариант, fallback)
+                try {
+                  console.log(`🔍 Попытка 5 (GET): /1.0/office/${officeId} (старый endpoint)`)
+                  officeResponse = await makePostApiRequest(
+                    `/1.0/office/${officeId}`,
+                    token,
+                    userAuthKey,
+                    'GET'
+                  )
+                  console.log(`✅ Успешно получены данные через GET /1.0/office/${officeId}`)
+                  console.log(`📦 Полный ответ API:`, JSON.stringify(officeResponse, null, 2))
+                } catch (error5: any) {
+                  console.error(`❌ Все варианты endpoint'ов не сработали. Последняя ошибка:`, {
+                    message: error5.message,
+                    status: error5.status,
+                    response: error5.response?.substring(0, 500),
+                    stack: error5.stack?.substring(0, 500)
+                  })
+                  lastError = error5
+                  throw error5
+                }
               }
             }
           }
