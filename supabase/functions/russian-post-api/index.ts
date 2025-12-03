@@ -305,27 +305,14 @@ serve(async (req) => {
         // ВНИМАНИЕ: Этот endpoint может возвращать ТОЛЬКО список индексов!
         // Чтобы получить детали (адрес, координаты, часы работы),
         // нужно вызвать getPostOfficeById для каждого индекса.
-        // Но сначала попробуем обработать то, что получили
         
-        const postOffices = rawOffices
-          .slice(0, searchTop) // Ограничиваем количество
-          .map((office: any) => {
-            // Если это просто строка (индекс), создаем базовый объект
-            if (typeof office === 'string') {
-              return {
-                id: office,
-                index: office,
-                postalCode: office,
-                name: `Отделение ${office}`,
-                address: `Почтовый индекс: ${office}`,
-                latitude: 0,
-                longitude: 0,
-                workingHours: 'Получение деталей через getPostOfficeById',
-                type: 'post_office'
-              }
-            }
-            
-            // Если это объект с данными, обрабатываем как обычно
+        // Сначала обрабатываем то, что получили
+        const officeIndices: string[] = []
+        const postOfficesWithData: any[] = []
+        
+        rawOffices.slice(0, searchTop).forEach((office: any) => {
+          // Если это объект с полными данными, используем их
+          if (typeof office === 'object' && office !== null && (office.address || office.name)) {
             let type = 'post_office'
             if (office.type === 'POSTAMAT' || office.type === 'постамат') {
               type = 'postamat'
@@ -349,7 +336,7 @@ serve(async (req) => {
                                office.schedule ||
                                'Не указано'
 
-            return {
+            postOfficesWithData.push({
               id: office.index || office.postalCode || office.id || `${office.latitude}_${office.longitude}`,
               index: office.index || office.postalCode,
               postalCode: office.postalCode || office.index,
@@ -360,8 +347,88 @@ serve(async (req) => {
               workingHours: workingHours,
               distance: office.distance || null,
               type: type,
+            })
+          } else {
+            // Если это просто индекс (строка), сохраняем для получения полных данных
+            const index = typeof office === 'string' ? office : (office.index || office.postalCode || office.id)
+            if (index && index.match(/^\d{6}$/)) {
+              officeIndices.push(index)
             }
-          })
+          }
+        })
+        
+        // Получаем полные данные для отделений, для которых есть только индекс
+        console.log(`🔍 Получаем полные данные для ${officeIndices.length} отделений по индексам`)
+        const fullOfficeDataPromises = officeIndices.map(async (index: string) => {
+          try {
+            const officeResponse = await makePostApiRequest(
+              `/1.0/office/${index}`,
+              token,
+              userAuthKey,
+              'GET'
+            )
+            
+            if (officeResponse) {
+              let type = 'post_office'
+              if (officeResponse.type === 'POSTAMAT' || officeResponse.type === 'постамат') {
+                type = 'postamat'
+              } else if (officeResponse.type === 'TERMINAL' || officeResponse.type === 'терминал') {
+                type = 'terminal'
+              }
+
+              const officeAddress = officeResponse.address?.source || 
+                                  officeResponse.address?.addressString ||
+                                  `${officeResponse.address?.city || ''}, ${officeResponse.address?.street || ''}, ${officeResponse.address?.house || ''}`.trim() ||
+                                  officeResponse.address ||
+                                  'Адрес не указан'
+
+              const officeName = officeResponse.name || 
+                                officeResponse.description ||
+                                `Отделение Почты России ${officeResponse.index || index}` ||
+                                'Отделение Почты России'
+
+              const workingHours = officeResponse.workTime || 
+                                 officeResponse.workingHours ||
+                                 officeResponse.schedule ||
+                                 'Не указано'
+
+              return {
+                id: officeResponse.index || index,
+                index: officeResponse.index || index,
+                postalCode: officeResponse.index || index,
+                name: officeName,
+                address: officeAddress,
+                latitude: officeResponse.latitude || officeResponse.coordinates?.latitude || 0,
+                longitude: officeResponse.longitude || officeResponse.coordinates?.longitude || 0,
+                workingHours: workingHours,
+                distance: null,
+                type: type,
+              }
+            }
+          } catch (error) {
+            console.warn(`⚠️ Не удалось получить данные для отделения ${index}:`, error)
+            // Возвращаем базовый объект с индексом
+            return {
+              id: index,
+              index: index,
+              postalCode: index,
+              name: `Отделение ${index}`,
+              address: `Почтовый индекс: ${index}`,
+              latitude: 0,
+              longitude: 0,
+              workingHours: 'Не указано',
+              type: 'post_office'
+            }
+          }
+          return null
+        })
+        
+        // Ждем получения всех данных
+        const fullOfficeData = await Promise.all(fullOfficeDataPromises)
+        const validFullOffices = fullOfficeData.filter((office): office is any => office !== null)
+        
+        // Объединяем отделения с полными данными и те, что получили по индексам
+        const postOffices = [...postOfficesWithData, ...validFullOffices]
 
         if (postOffices.length === 0) {
           console.warn('API Почты России не вернул отделений для адреса:', fullAddress)
