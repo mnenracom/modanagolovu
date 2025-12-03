@@ -221,27 +221,65 @@ export const russianPostService = {
         cost = 0;
       }
       
-      // Форматируем срок доставки
+      // Форматируем срок доставки - максимально надежное извлечение
       let deliveryTime = '5-7';
-      if (data.deliveryTime) {
-        // Если это строка вида "5-7" или "5-7 дней", оставляем как есть
+      
+      // Приоритет 1: min-days и max-days (kebab-case из API)
+      if (data['min-days'] !== undefined && data['max-days'] !== undefined) {
+        const min = Number(data['min-days']) || 5;
+        const max = Number(data['max-days']) || 7;
+        deliveryTime = `${min}-${max}`;
+      }
+      // Приоритет 2: minDays и maxDays (camelCase)
+      else if (data.minDays !== undefined && data.maxDays !== undefined) {
+        const min = Number(data.minDays) || 5;
+        const max = Number(data.maxDays) || 7;
+        deliveryTime = `${min}-${max}`;
+      }
+      // Приоритет 3: deliveryTime как строка
+      else if (data.deliveryTime) {
         if (typeof data.deliveryTime === 'string') {
-          deliveryTime = data.deliveryTime.replace(/дней?|дн\.?/gi, '').trim() || '5-7';
+          // Очищаем от лишних слов и символов
+          deliveryTime = data.deliveryTime
+            .replace(/дней?|дн\.?|days?/gi, '')
+            .replace(/[^\d-]/g, '')
+            .trim() || '5-7';
         } else if (typeof data.deliveryTime === 'object') {
           // Если это объект с min и max
-          const min = data.deliveryTime.min || 5;
-          const max = data.deliveryTime.max || 7;
+          const min = Number(data.deliveryTime.min) || 5;
+          const max = Number(data.deliveryTime.max) || 7;
           deliveryTime = `${min}-${max}`;
         }
-      } else if (data.days) {
-        // Альтернативный формат
-        if (typeof data.days === 'object') {
-          const min = data.days.min || 5;
-          const max = data.days.max || 7;
-          deliveryTime = `${min}-${max}`;
-        } else {
+      }
+      // Приоритет 4: days (число или строка)
+      else if (data.days !== undefined) {
+        if (typeof data.days === 'number') {
           deliveryTime = String(data.days);
+        } else if (typeof data.days === 'string') {
+          deliveryTime = data.days.replace(/дней?|дн\.?/gi, '').trim() || '5-7';
+        } else if (typeof data.days === 'object') {
+          const min = Number(data.days.min) || 5;
+          const max = Number(data.days.max) || 7;
+          deliveryTime = `${min}-${max}`;
         }
+      }
+      // Приоритет 5: delivery-time (kebab-case)
+      else if (data['delivery-time']) {
+        if (typeof data['delivery-time'] === 'string') {
+          deliveryTime = data['delivery-time']
+            .replace(/дней?|дн\.?/gi, '')
+            .replace(/[^\d-]/g, '')
+            .trim() || '5-7';
+        } else if (typeof data['delivery-time'] === 'number') {
+          deliveryTime = String(data['delivery-time']);
+        }
+      }
+      
+      // Убеждаемся, что deliveryTime в правильном формате
+      if (!deliveryTime.includes('-') && !isNaN(Number(deliveryTime))) {
+        // Если это одно число, добавляем диапазон ±1 день
+        const days = Number(deliveryTime);
+        deliveryTime = `${Math.max(1, days - 1)}-${days + 1}`;
       }
 
       return {
