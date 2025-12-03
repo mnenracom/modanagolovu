@@ -176,27 +176,27 @@ serve(async (req) => {
 
       try {
         // Поиск отделений по городу через API Почты России
-        // Используем эндпоинт /1.0/office для поиска отделений
-        const queryParams = new URLSearchParams({
-          filter: 'ALL', // Все типы: отделения, постаматы, терминалы
-          top: '50', // Максимальное количество результатов
-        })
-
-        // Если есть почтовый индекс, добавляем его в фильтр
-        if (address.postalCode) {
-          queryParams.append('postalCode', address.postalCode)
-        }
-
-        // Поиск по городу
+        // Актуальный эндпоинт: POST /postoffice/1.0/
         const cityName = address.city.trim()
         
-        // Пробуем найти отделения через API
-        // Эндпоинт: GET /1.0/office?filter=ALL&top=50
+        // Формат запроса согласно документации API Почты России
+        const searchRequest = {
+          city: cityName,
+          region: address.region || '',
+          postalCode: address.postalCode || '',
+          top: 50, // Максимальное количество результатов
+          filter: 'ALL' // Все типы: отделения, постаматы, терминалы
+        }
+        
+        console.log('Запрос поиска отделений:', JSON.stringify(searchRequest))
+        
+        // Пробуем найти отделения через актуальный API endpoint
         const officesResponse = await makePostApiRequest(
-          `/1.0/office?${queryParams.toString()}`,
+          '/postoffice/1.0/',
           apiKey,
           token,
-          'GET'
+          'POST',
+          searchRequest
         )
 
         // Преобразуем ответ API в наш формат
@@ -335,7 +335,7 @@ serve(async (req) => {
 
       try {
         // Расчет стоимости доставки через API Почты России
-        // Эндпоинт: POST /1.0/tariff
+        // Актуальный эндпоинт: POST /tariff/1.0/calculate
         const tariffRequest = {
           object: 6430, // Код объекта отправления (6430 - посылка)
           from: from.postalCode || '101000', // Почтовый индекс отправителя
@@ -347,8 +347,10 @@ serve(async (req) => {
           payment: declaredValue ? declaredValue : 0, // Сумма наложенного платежа
         }
 
+        console.log('Запрос расчета тарифа:', JSON.stringify(tariffRequest))
+
         const tariffResponse = await makePostApiRequest(
-          '/1.0/tariff',
+          '/tariff/1.0/calculate',
           apiKey,
           token,
           'POST',
