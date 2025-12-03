@@ -54,7 +54,10 @@ async function makePostApiRequest(
 ): Promise<any> {
   const url = `${POST_API_BASE_URL}${endpoint}`
   
-  console.log(`Запрос к API Почты России: ${method} ${url}`)
+  // Детальное логирование для отладки
+  console.log(`🔍 Запрос к API Почты России: ${method} ${url}`)
+  console.log(`📋 Endpoint: ${endpoint}`)
+  console.log(`🌐 Полный URL: ${url}`)
   
   // Для API Почты России используется два заголовка авторизации:
   // 1. Authorization: AccessToken <токен_приложения> - токен авторизации приложения
@@ -238,6 +241,10 @@ serve(async (req) => {
         
         // Тело запроса для поиска отделений
         // API ожидает POST запрос с телом, содержащим фильтры
+        // Согласно документации API Почты России, формат может быть:
+        // 1. { city: "...", region: "...", postalCode: "..." }
+        // 2. Или массив объектов [{ city: "...", ... }]
+        // Попробуем оба варианта, начнем с объекта
         const searchRequestBody = {
           city: cityName,
           ...(address.region && { region: address.region }),
@@ -246,15 +253,51 @@ serve(async (req) => {
           // type: ['POST_OFFICE', 'POSTOMAT'] // или оставить пустым для всех типов
         }
         
+        console.log('📦 Тело запроса для поиска:', JSON.stringify(searchRequestBody))
+        
         // Используем правильный endpoint для поиска отделений
         // POST /1.0/offices/search
-        const officesResponse = await makePostApiRequest(
-          '/1.0/offices/search',
-          token,
-          userAuthKey,
-          'POST',
-          searchRequestBody
-        )
+        // ВАЖНО: НЕ используем старые endpoints:
+        // ❌ /1.0/office?filter=ALL&top=50 (GET)
+        // ❌ /postoffice/1.0/by-address (GET)
+        // ✅ /1.0/offices/search (POST)
+        console.log('🚀 Вызываем makePostApiRequest с правильным endpoint: /1.0/offices/search')
+        console.log('📋 Параметры поиска:', JSON.stringify(searchRequestBody))
+        
+        let officesResponse: any
+        let lastError: any = null
+        
+        // Пробуем разные варианты endpoints, если основной не работает
+        const endpointsToTry = [
+          '/1.0/offices/search',           // Основной endpoint (рекомендуемый)
+          '/postoffice/1.0/search',        // Альтернативный вариант
+          '/1.0/postoffice/search',       // Еще один вариант
+        ]
+        
+        for (const endpoint of endpointsToTry) {
+          try {
+            console.log(`🔄 Пробуем endpoint: ${endpoint}`)
+            officesResponse = await makePostApiRequest(
+              endpoint,
+              token,
+              userAuthKey,
+              'POST',
+              searchRequestBody
+            )
+            console.log(`✅ Успешно использован endpoint: ${endpoint}`)
+            break // Если успешно, выходим из цикла
+          } catch (error: any) {
+            console.warn(`⚠️ Endpoint ${endpoint} не сработал:`, error.message)
+            lastError = error
+            // Продолжаем пробовать следующий endpoint
+            continue
+          }
+        }
+        
+        // Если все endpoints не сработали, выбрасываем последнюю ошибку
+        if (!officesResponse) {
+          throw lastError || new Error('Все варианты endpoints не сработали')
+        }
 
         // Преобразуем ответ API в наш формат
         let postOffices: any[] = []
