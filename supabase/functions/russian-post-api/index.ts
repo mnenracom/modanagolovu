@@ -55,9 +55,10 @@ async function makePostApiRequest(
   const url = `${POST_API_BASE_URL}${endpoint}`
   
   // Детальное логирование для отладки
-  console.log(`🔍 Запрос к API Почты России: ${method} ${url}`)
+  console.log(`📡 Отправка запроса к Почте России: ${method} ${url}`)
   console.log(`📋 Endpoint: ${endpoint}`)
   console.log(`🌐 Полный URL: ${url}`)
+  console.log(`🔗 Base URL: ${POST_API_BASE_URL}`)
   
   // Для API Почты России используется два заголовка авторизации:
   // 1. Authorization: AccessToken <токен_приложения> - токен авторизации приложения
@@ -84,9 +85,16 @@ async function makePostApiRequest(
     headers['X-User-Authorization'] = `Basic ${basicAuthValue}`
   }
   
-  console.log('Заголовки запроса:', {
+  // Детальное логирование заголовков (без чувствительных данных)
+  console.log('📬 Заголовки запроса:', {
+    'Authorization': headers['Authorization'] ? `AccessToken ${apiToken.substring(0, 10)}...` : 'ОТСУТСТВУЕТ!',
+    'X-User-Authorization': headers['X-User-Authorization'] ? `Basic ${userAuthKey?.substring(0, 10)}...` : 'ОТСУТСТВУЕТ!',
+    'Content-Type': headers['Content-Type'],
+    'Accept': headers['Accept'],
     hasToken: !!apiToken,
     hasUserAuth: !!userAuthKey,
+    tokenLength: apiToken?.length || 0,
+    userAuthLength: userAuthKey?.length || 0,
     endpoint: endpoint,
     method: method
   })
@@ -97,9 +105,16 @@ async function makePostApiRequest(
   }
 
   if (body && method === 'POST') {
-    options.body = JSON.stringify(body)
-    console.log('Тело запроса:', JSON.stringify(body).substring(0, 200))
+    const bodyString = JSON.stringify(body)
+    options.body = bodyString
+    console.log('📄 Тело запроса:', bodyString)
+    console.log('📄 Тело запроса (первые 500 символов):', bodyString.substring(0, 500))
+  } else {
+    console.log('📄 Тело запроса: Нет тела (GET запрос)')
   }
+  
+  // Финальная проверка перед отправкой
+  console.log('✅ Все готово к отправке запроса')
 
   try {
     // В Deno fetch может иметь проблемы с SSL, но обычно работает
