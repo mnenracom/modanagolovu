@@ -107,8 +107,21 @@ async function makePostApiRequest(
   if (body && method === 'POST') {
     const bodyString = JSON.stringify(body)
     options.body = bodyString
-    console.log('📄 Тело запроса:', bodyString)
-    console.log('📄 Тело запроса (первые 500 символов):', bodyString.substring(0, 500))
+    console.log('📄 Тело запроса (JSON строка):', bodyString)
+    console.log('📄 Тело запроса (первые 1000 символов):', bodyString.substring(0, 1000))
+    console.log('📄 Тело запроса (объект, для отладки):', JSON.stringify(body, null, 2))
+    
+    // Специальное логирование для тарифа
+    if (endpoint.includes('/tariff') || endpoint.includes('tariff')) {
+      console.log('💰 КРИТИЧЕСКОЕ ЛОГИРОВАНИЕ ТАРИФА:')
+      console.log('💰 Endpoint:', endpoint)
+      console.log('💰 Полное тело запроса тарифа:', JSON.stringify(body, null, 2))
+      console.log('💰 index-from:', body['index-from'] || body.indexFrom || 'ОТСУТСТВУЕТ!')
+      console.log('💰 index-to:', body['index-to'] || body.indexTo || 'ОТСУТСТВУЕТ!')
+      console.log('💰 mass:', body.mass || body.weight || 'ОТСУТСТВУЕТ!')
+      console.log('💰 declared-value:', body['declared-value'] || body.declaredValue || 'ОТСУТСТВУЕТ!')
+      console.log('💰 service:', body.service || 'ОТСУТСТВУЕТ!')
+    }
   } else {
     console.log('📄 Тело запроса: Нет тела (GET запрос)')
   }
@@ -172,6 +185,20 @@ async function makePostApiRequest(
       const data = await response.json()
       console.log('✅ Успешный ответ API Почты России (полный JSON):', JSON.stringify(data, null, 2))
       console.log('📊 Размер данных:', JSON.stringify(data).length, 'символов')
+      
+      // Специальное логирование для get_post_office
+      if (endpoint.includes('/postoffice/1.0/objects') || endpoint.includes('get_post_office')) {
+        console.log(`📦 Тело ответа API для get_post_office:`)
+        console.log(`📦 Тип данных:`, typeof data, Array.isArray(data) ? '(массив)' : '(объект)')
+        console.log(`📦 Полное тело ответа:`, JSON.stringify(data, null, 2))
+        if (Array.isArray(data)) {
+          console.log(`📦 Размер массива: ${data.length}`)
+          data.forEach((item: any, index: number) => {
+            console.log(`📦 Элемент ${index}:`, JSON.stringify(item, null, 2))
+          })
+        }
+      }
+      
       return data
     } else {
       // Если ответ не JSON, читаем текст для отладки
@@ -622,14 +649,23 @@ serve(async (req) => {
           ]
         }
 
-        console.log('Запрос расчета тарифа:', JSON.stringify(tariffRequest))
-        console.log('📊 Параметры:', {
-          from: indexFrom,
-          to: indexTo,
+        console.log('💰 КРИТИЧЕСКОЕ ЛОГИРОВАНИЕ ТАРИФА (перед отправкой):')
+        console.log('💰 Запрос расчета тарифа (объект):', JSON.stringify(tariffRequest, null, 2))
+        console.log('💰 Запрос расчета тарифа (строка):', JSON.stringify(tariffRequest))
+        console.log('💰 📊 Параметры расчета:', {
+          'index-from': indexFrom,
+          'index-to': indexTo,
+          from: from,
+          to: to,
           weight: weight,
           weightInGrams: weightInGrams,
           declaredValue: declaredValue,
-          declaredValueInKopecks: declaredValueInKopecks
+          declaredValueInKopecks: declaredValueInKopecks,
+          'indexFrom (проверка)': tariffRequest['index-from'],
+          'indexTo (проверка)': tariffRequest['index-to'],
+          'mass (проверка)': tariffRequest.mass,
+          'declared-value (проверка)': tariffRequest['declared-value'],
+          'service (проверка)': tariffRequest.service
         })
 
         // ВАЖНО: Используем правильный endpoint согласно документации: /1.0/tariff (не /tariff/1.0/calculate)
@@ -769,6 +805,14 @@ serve(async (req) => {
           console.log(`🚀 ПРИОРИТЕТ: POST /postoffice/1.0/objects с телом [${officeId}]`)
           const requestBody = [officeId] // Массив с одним индексом
           console.log(`📄 Тело запроса (JSON):`, JSON.stringify(requestBody))
+          console.log(`📄 Тело запроса (объект):`, requestBody)
+          
+          // Выполняем запрос напрямую для детального логирования
+          const postUrl = `${POST_API_BASE_URL}/postoffice/1.0/objects`
+          console.log(`➡️ Отправка POST запроса к API: ${postUrl}`)
+          console.log(`📋 Метод: POST`)
+          console.log(`📋 Endpoint: /postoffice/1.0/objects`)
+          console.log(`📋 Тело запроса:`, JSON.stringify(requestBody, null, 2))
           
           officeResponse = await makePostApiRequest(
             `/postoffice/1.0/objects`,
@@ -780,7 +824,15 @@ serve(async (req) => {
           
           console.log(`✅ Успешно получены данные через POST /postoffice/1.0/objects`)
           console.log(`📦 Тип ответа:`, typeof officeResponse, Array.isArray(officeResponse) ? '(массив)' : '(объект)')
-          console.log(`📦 Полный ответ API:`, JSON.stringify(officeResponse, null, 2))
+          console.log(`📦 Полный ответ API (get_post_office):`, JSON.stringify(officeResponse, null, 2))
+          
+          // Дополнительное логирование для массива
+          if (Array.isArray(officeResponse)) {
+            console.log(`📊 Размер массива: ${officeResponse.length} элементов`)
+            if (officeResponse.length > 0) {
+              console.log(`📦 Первый элемент массива:`, JSON.stringify(officeResponse[0], null, 2))
+            }
+          }
           
           // Если ответ - массив, берем первый элемент
           if (Array.isArray(officeResponse)) {
