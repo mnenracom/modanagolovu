@@ -18,9 +18,10 @@ serve(async (req) => {
 
   try {
     // Получаем параметры из запроса
-    const { shopId, secretKey, amount, orderId, orderNumber, description, returnUrl, testMode } = await req.json()
+    const { shopId: rawShopId, secretKey, amount: rawAmount, orderId, orderNumber, description, returnUrl, testMode } = await req.json()
 
-    if (!shopId || !secretKey || !amount || !orderId || !returnUrl) {
+    // Проверка наличия обязательных параметров
+    if (!rawShopId || !secretKey || !rawAmount || !orderId || !returnUrl) {
       return new Response(
         JSON.stringify({ error: 'Недостаточно параметров для создания платежа. Проверьте Shop ID и Secret Key.' }),
         { 
@@ -30,10 +31,14 @@ serve(async (req) => {
       )
     }
 
-    // Проверяем формат Shop ID (должен быть числом)
-    if (isNaN(parseInt(shopId))) {
+    // Принудительное преобразование типов для гарантии корректного формата
+    const shopId = String(rawShopId) // Гарантируем, что это строка
+    const amount = Number(rawAmount) // Гарантируем, что это число
+
+    // Проверка, что amount является валидным числом
+    if (isNaN(amount) || amount <= 0) {
       return new Response(
-        JSON.stringify({ error: 'Неверный формат Shop ID. Должно быть число.' }),
+        JSON.stringify({ error: 'Неверная сумма платежа. Сумма должна быть положительным числом.' }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -41,26 +46,12 @@ serve(async (req) => {
       )
     }
 
-    // ДИАГНОСТИКА: Проверка ключей перед формированием запроса
-    console.log('🔍 ПРОВЕРКА КЛЮЧЕЙ:')
-    console.log('Shop ID:', shopId, '| Тип:', typeof shopId, '| Длина:', String(shopId).length)
-    console.log('Secret Key длина:', secretKey ? secretKey.length : 0)
-    console.log('Secret Key начинается с:', secretKey ? secretKey.substring(0, 20) + '...' : 'ОТСУТСТВУЕТ')
-    
-    // Проверка формата Secret Key (должен начинаться с test_ или live_)
-    if (secretKey && !secretKey.startsWith('test_') && !secretKey.startsWith('live_')) {
-      console.error('⚠️ ВНИМАНИЕ: Secret Key не начинается с test_ или live_!')
-      console.error('Это может быть Публичный ключ вместо Секретного ключа!')
-      console.error('Secret Key первые 50 символов:', secretKey.substring(0, 50))
-    }
-    
     // Проверка, что Secret Key не пустой и имеет достаточную длину
     if (!secretKey || secretKey.length < 20) {
-      console.error('❌ ОШИБКА: Secret Key пустой или слишком короткий!')
       return new Response(
         JSON.stringify({ 
           error: 'Secret Key не настроен или имеет неверный формат. Проверьте настройки в админ-панели.',
-          details: 'Secret Key должен начинаться с test_ или live_ и иметь длину не менее 20 символов'
+          details: 'Secret Key должен иметь длину не менее 20 символов'
         }),
         { 
           status: 400,
@@ -89,35 +80,17 @@ serve(async (req) => {
     }
 
     // Используем правильный URL API (продакшн или тестовый)
-    const apiUrl = testMode 
-      ? 'https://api.yookassa.ru/v3/payments' // Тестовый режим использует тот же URL
-      : 'https://api.yookassa.ru/v3/payments'
+    const apiUrl = 'https://api.yookassa.ru/v3/payments'
 
-    // ДИАГНОСТИКА: Лог перед запросом к ЮКассе для отслеживания таймаутов
-    console.log('--- START YOOKASSA REQUEST for order:', orderId, 'amount:', amount, '---')
-    console.log('API URL:', apiUrl)
-    console.log('Test Mode:', testMode)
-    
-    // Формируем Basic Auth токен (объявляем один раз)
+    // Формируем Basic Auth токен
     const authToken = btoa(`${shopId}:${secretKey}`)
-    console.log('Basic Auth токен (первые 30 символов):', authToken.substring(0, 30) + '...')
-    console.log('Basic Auth токен длина:', authToken.length)
-    
-    console.log('Request body:', JSON.stringify(paymentRequest))
 
-    // Формируем заголовки с Basic Auth (используем уже объявленный authToken)
+    // Формируем заголовки с Basic Auth
     const headers = {
       'Content-Type': 'application/json',
       'Idempotence-Key': `${orderId}-${Date.now()}`,
       'Authorization': `Basic ${authToken}`,
     }
-    
-    console.log('📤 Отправка запроса к API ЮКассы...')
-    console.log('Headers (без Authorization):', {
-      'Content-Type': headers['Content-Type'],
-      'Idempotence-Key': headers['Idempotence-Key'],
-      'Authorization': 'Basic ' + authToken.substring(0, 20) + '...'
-    })
 
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -159,14 +132,6 @@ serve(async (req) => {
     }
 
     const paymentData = await response.json()
-    
-    // ДИАГНОСТИКА: Лог успешного ответа
-    console.log('✅ Успешный ответ от ЮКассы:', {
-      paymentId: paymentData.id,
-      status: paymentData.status,
-      hasConfirmationUrl: !!paymentData.confirmation?.confirmation_url,
-      orderId: orderId
-    })
 
     if (!paymentData.confirmation?.confirmation_url) {
       return new Response(
