@@ -6,12 +6,28 @@ import { Loader2, MapPin, AlertCircle } from 'lucide-react';
 // Расширяем Window для функции корзинного виджета
 declare global {
   interface Window {
+    // Вариант 1: Объект конфигурации
     ecomStartCartWidget?: (config: {
       id: number;
       target: string;
       cartValue: number;
       cartWeight: number;
+      callbackFunction?: (data: any) => void;
       onSelect?: (data: any) => void;
+    }) => void;
+    // Вариант 2: Отдельные параметры
+    ecomStartCartWidget?: (
+      id: number,
+      target: string,
+      cartValue: number,
+      cartWeight: number,
+      callbackFunction?: (data: any) => void
+    ) => void;
+    // Общий виджет (fallback)
+    ecomStartWidget?: (config: {
+      id: number;
+      containerId: string;
+      callbackFunction?: (data: any) => void;
     }) => void;
   }
 }
@@ -93,8 +109,15 @@ export const PochtaCartWidget = ({
 
         const script = document.createElement('script');
         script.id = 'pochta-cart-widget-script';
-        script.src = 'https://widget.pochta.ru/cart/widget/widget.js';
+        // Пробуем разные варианты URL скрипта виджета
+        const scriptUrls = [
+          'https://widget.pochta.ru/cart/widget/widget.js',
+          'https://widget.pochta.ru/widget/widget.js',
+          'https://otpravka.pochta.ru/widget/widget.js',
+        ];
+        script.src = scriptUrls[0]; // Используем первый вариант
         script.async = true;
+        script.crossOrigin = 'anonymous'; // Добавляем для CORS
         
         // Сохраняем ссылку на скрипт для использования в обработчиках
         const scriptElement = script;
@@ -140,12 +163,15 @@ export const PochtaCartWidget = ({
         console.log('🔄 Пробуем загрузить виджет через iframe');
         
         // Пробуем разные варианты URL для iframe
+        // Согласно документации, виджет корзины может быть доступен по разным URL
         const iframeUrls = [
           `https://widget.pochta.ru/cart/?widgetId=${widgetId}&cartValue=${cartValue}&cartWeight=${cartWeight}`,
           `https://widget.pochta.ru/map/?widgetId=${widgetId}&cartValue=${cartValue}&cartWeight=${cartWeight}`,
+          `https://otpravka.pochta.ru/widget/?widgetId=${widgetId}&cartValue=${cartValue}&cartWeight=${cartWeight}`,
         ];
 
         const iframeUrl = iframeUrls[0]; // Используем первый вариант
+        console.log('🔄 Загружаем iframe с URL:', iframeUrl);
         
         containerRef.current.innerHTML = `
           <iframe 
@@ -308,21 +334,77 @@ export const PochtaCartWidget = ({
         // Сохраняем callback в глобальной области для виджета
         (window as any).__pochtaCartWidgetCallback = callbackFunction;
 
-        // Инициализируем корзинный виджет с официальным callbackFunction
-        window.ecomStartCartWidget({
-          id: widgetId,
-          target: 'pochta-cart-widget',
-          cartValue: cartValue, // Сумма корзины в рублях
-          cartWeight: cartWeight, // Вес корзины в граммах
-          callbackFunction: callbackFunction, // КРИТИЧЕСКИ ВАЖНО: Используем callbackFunction вместо onSelect
-        });
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем, что функция существует и имеет правильную сигнатуру
+        // Согласно документации, виджет может использовать разные варианты инициализации
+        if (typeof window.ecomStartCartWidget === 'function') {
+          try {
+            // Пробуем вариант с объектом конфигурации (наиболее распространенный)
+            window.ecomStartCartWidget({
+              id: widgetId,
+              target: 'pochta-cart-widget',
+              cartValue: cartValue, // Сумма корзины в рублях
+              cartWeight: cartWeight, // Вес корзины в граммах
+              callbackFunction: callbackFunction, // КРИТИЧЕСКИ ВАЖНО: Используем callbackFunction
+            });
+            console.log(`✅ Корзинный виджет инициализирован с ID ${widgetId}`);
+          } catch (initError: any) {
+            console.error('❌ Ошибка инициализации виджета (вариант 1):', initError);
+            // Пробуем альтернативный вариант с отдельными параметрами
+            try {
+              if (window.ecomStartCartWidget.length >= 4) {
+                (window.ecomStartCartWidget as any)(
+                  widgetId,
+                  'pochta-cart-widget',
+                  cartValue,
+                  cartWeight,
+                  callbackFunction
+                );
+                console.log(`✅ Корзинный виджет инициализирован (вариант 2) с ID ${widgetId}`);
+              } else {
+                throw initError; // Пробрасываем ошибку дальше
+              }
+            } catch (initError2: any) {
+              console.error('❌ Ошибка инициализации виджета (вариант 2):', initError2);
+              setError(`Ошибка инициализации виджета: ${initError2.message || initError.message}`);
+              setLoading(false);
+              // Пробуем iframe как fallback
+              tryIframe();
+              return;
+            }
+          }
+        } else if (typeof window.ecomStartWidget === 'function') {
+          // Fallback на общий виджет, если корзинный не найден
+          console.warn('⚠️ ecomStartCartWidget не найден, пробуем ecomStartWidget');
+          try {
+            window.ecomStartWidget({
+              id: widgetId,
+              containerId: 'pochta-cart-widget',
+              callbackFunction: callbackFunction,
+            });
+            console.log(`✅ Общий виджет инициализирован с ID ${widgetId}`);
+          } catch (initError: any) {
+            console.error('❌ Ошибка инициализации общего виджета:', initError);
+            setError(`Ошибка инициализации виджета: ${initError.message}`);
+            setLoading(false);
+            tryIframe();
+            return;
+          }
+        } else {
+          console.error('❌ Функция ecomStartCartWidget не найдена');
+          setError('Функция корзинного виджета не найдена. Проверьте, что скрипт загружен.');
+          setLoading(false);
+          // Пробуем iframe как fallback
+          tryIframe();
+          return;
+        }
         
-        console.log(`✅ Корзинный виджет инициализирован с ID ${widgetId}`);
         setLoading(false);
       } catch (err: any) {
         console.error('❌ Ошибка инициализации корзинного виджета:', err);
         setError(`Ошибка инициализации виджета: ${err.message}`);
         setLoading(false);
+        // Пробуем iframe как fallback
+        tryIframe();
       }
     };
 
