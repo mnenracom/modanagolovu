@@ -65,6 +65,13 @@ serve(async (req) => {
       ? 'https://api.yookassa.ru/v3/payments' // Тестовый режим использует тот же URL
       : 'https://api.yookassa.ru/v3/payments'
 
+    // ДИАГНОСТИКА: Лог перед запросом к ЮКассе для отслеживания таймаутов
+    console.log('--- START YOOKASSA REQUEST for order:', orderId, 'amount:', amount, '---')
+    console.log('API URL:', apiUrl)
+    console.log('Shop ID:', shopId)
+    console.log('Test Mode:', testMode)
+    console.log('Request body:', JSON.stringify(paymentRequest))
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -77,9 +84,29 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
+      
+      // ДИАГНОСТИКА: Вывод детальной ошибки от ЮКассы в логи Supabase
+      console.error('❌ Ошибка API ЮКассы:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData: errorData,
+        orderId: orderId,
+        shopId: shopId,
+        testMode: testMode
+      })
+      
+      // Дополнительная информация для диагностики 401 ошибки
+      if (response.status === 401) {
+        console.error('⚠️ 401 Unauthorized - Проверьте правильность Shop ID и Secret Key')
+        console.error('Shop ID тип:', typeof shopId, 'значение:', shopId)
+        console.error('Secret Key длина:', secretKey ? secretKey.length : 0, 'начинается с:', secretKey ? secretKey.substring(0, 10) + '...' : 'отсутствует')
+      }
+      
       return new Response(
         JSON.stringify({ 
-          error: errorData.description || `Ошибка создания платежа: ${response.status}` 
+          error: errorData.description || `Ошибка создания платежа: ${response.status}`,
+          status: response.status,
+          details: errorData
         }),
         { 
           status: response.status,
@@ -89,6 +116,14 @@ serve(async (req) => {
     }
 
     const paymentData = await response.json()
+    
+    // ДИАГНОСТИКА: Лог успешного ответа
+    console.log('✅ Успешный ответ от ЮКассы:', {
+      paymentId: paymentData.id,
+      status: paymentData.status,
+      hasConfirmationUrl: !!paymentData.confirmation?.confirmation_url,
+      orderId: orderId
+    })
 
     if (!paymentData.confirmation?.confirmation_url) {
       return new Response(
