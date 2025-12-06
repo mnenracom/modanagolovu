@@ -98,15 +98,14 @@ serve(async (req) => {
     console.log('API URL:', apiUrl)
     console.log('Test Mode:', testMode)
     
-    // Формируем Basic Auth токен для проверки
+    // Формируем Basic Auth токен (объявляем один раз)
     const authToken = btoa(`${shopId}:${secretKey}`)
     console.log('Basic Auth токен (первые 30 символов):', authToken.substring(0, 30) + '...')
     console.log('Basic Auth токен длина:', authToken.length)
     
     console.log('Request body:', JSON.stringify(paymentRequest))
 
-    // Формируем заголовки с Basic Auth
-    const authToken = btoa(`${shopId}:${secretKey}`)
+    // Формируем заголовки с Basic Auth (используем уже объявленный authToken)
     const headers = {
       'Content-Type': 'application/json',
       'Idempotence-Key': `${orderId}-${Date.now()}`,
