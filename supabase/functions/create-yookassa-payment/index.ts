@@ -41,6 +41,34 @@ serve(async (req) => {
       )
     }
 
+    // ДИАГНОСТИКА: Проверка ключей перед формированием запроса
+    console.log('🔍 ПРОВЕРКА КЛЮЧЕЙ:')
+    console.log('Shop ID:', shopId, '| Тип:', typeof shopId, '| Длина:', String(shopId).length)
+    console.log('Secret Key длина:', secretKey ? secretKey.length : 0)
+    console.log('Secret Key начинается с:', secretKey ? secretKey.substring(0, 20) + '...' : 'ОТСУТСТВУЕТ')
+    
+    // Проверка формата Secret Key (должен начинаться с test_ или live_)
+    if (secretKey && !secretKey.startsWith('test_') && !secretKey.startsWith('live_')) {
+      console.error('⚠️ ВНИМАНИЕ: Secret Key не начинается с test_ или live_!')
+      console.error('Это может быть Публичный ключ вместо Секретного ключа!')
+      console.error('Secret Key первые 50 символов:', secretKey.substring(0, 50))
+    }
+    
+    // Проверка, что Secret Key не пустой и имеет достаточную длину
+    if (!secretKey || secretKey.length < 20) {
+      console.error('❌ ОШИБКА: Secret Key пустой или слишком короткий!')
+      return new Response(
+        JSON.stringify({ 
+          error: 'Secret Key не настроен или имеет неверный формат. Проверьте настройки в админ-панели.',
+          details: 'Secret Key должен начинаться с test_ или live_ и иметь длину не менее 20 символов'
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
     // Создаем платеж через API ЮКассы
     const paymentRequest = {
       amount: {
@@ -68,17 +96,33 @@ serve(async (req) => {
     // ДИАГНОСТИКА: Лог перед запросом к ЮКассе для отслеживания таймаутов
     console.log('--- START YOOKASSA REQUEST for order:', orderId, 'amount:', amount, '---')
     console.log('API URL:', apiUrl)
-    console.log('Shop ID:', shopId)
     console.log('Test Mode:', testMode)
+    
+    // Формируем Basic Auth токен для проверки
+    const authToken = btoa(`${shopId}:${secretKey}`)
+    console.log('Basic Auth токен (первые 30 символов):', authToken.substring(0, 30) + '...')
+    console.log('Basic Auth токен длина:', authToken.length)
+    
     console.log('Request body:', JSON.stringify(paymentRequest))
+
+    // Формируем заголовки с Basic Auth
+    const authToken = btoa(`${shopId}:${secretKey}`)
+    const headers = {
+      'Content-Type': 'application/json',
+      'Idempotence-Key': `${orderId}-${Date.now()}`,
+      'Authorization': `Basic ${authToken}`,
+    }
+    
+    console.log('📤 Отправка запроса к API ЮКассы...')
+    console.log('Headers (без Authorization):', {
+      'Content-Type': headers['Content-Type'],
+      'Idempotence-Key': headers['Idempotence-Key'],
+      'Authorization': 'Basic ' + authToken.substring(0, 20) + '...'
+    })
 
     const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotence-Key': `${orderId}-${Date.now()}`,
-        'Authorization': `Basic ${btoa(`${shopId}:${secretKey}`)}`,
-      },
+      headers: headers,
       body: JSON.stringify(paymentRequest),
     })
 
@@ -145,10 +189,26 @@ serve(async (req) => {
       }
     )
   } catch (error: any) {
-    console.error('Ошибка в функции create-yookassa-payment:', error)
+    console.error('❌ КРИТИЧЕСКАЯ ОШИБКА в функции create-yookassa-payment:', error)
     console.error('Тип ошибки:', error.constructor?.name)
     console.error('Сообщение:', error.message)
     console.error('Стек ошибки:', error.stack)
+    
+    // Специальная диагностика для TLS/Network ошибок
+    if (error.message && (
+      error.message.includes('connection error') ||
+      error.message.includes('peer closed connection') ||
+      error.message.includes('TLS') ||
+      error.message.includes('network')
+    )) {
+      console.error('🔴 ОБНАРУЖЕНА TLS/Network ошибка!')
+      console.error('Это обычно означает проблему с авторизацией (неверный Secret Key)')
+      console.error('Проверьте:')
+      console.error('1. Secret Key должен начинаться с test_ или live_')
+      console.error('2. Secret Key должен быть Секретным ключом, а не Публичным')
+      console.error('3. Shop ID должен быть числом')
+      console.error('4. Ключи должны быть из правильного режима (тестовый/продакшн)')
+    }
     
     // Возвращаем детальную информацию об ошибке для отладки
     const errorResponse = {
