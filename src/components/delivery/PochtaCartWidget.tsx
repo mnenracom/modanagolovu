@@ -226,38 +226,95 @@ export const PochtaCartWidget = ({
           cartWeight
         });
 
-        // Инициализируем корзинный виджет
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Используем официальный callbackFunction виджета
+        // Согласно документации: https://otpravka.pochta.ru/widget/help/#_2
+        // Виджет возвращает данные через callbackFunction с полями:
+        // - cashOfDelivery: стоимость в КОПЕЙКАХ (нужно разделить на 100)
+        // - indexTo: индекс получателя (6 цифр)
+        // - addressTo: полный адрес отделения
+        // - cityTo: город получателя
+        // - и другие поля
+        
+        // Создаем глобальную callback функцию для виджета
+        const callbackFunction = (widgetData: any) => {
+          console.log('🎯 Виджет вернул данные через callbackFunction:', widgetData);
+          
+          // Сохраняем данные
+          setSelectedData(widgetData);
+          
+          // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Извлекаем данные согласно официальной документации
+          if (widgetData && onSelect) {
+            // cashOfDelivery приходит в КОПЕЙКАХ, нужно разделить на 100
+            const costInRubles = widgetData.cashOfDelivery 
+              ? Math.ceil(widgetData.cashOfDelivery / 100) 
+              : (widgetData.cost || widgetData.deliveryCost || widgetData.price || 0);
+            
+            // Извлекаем индекс получателя
+            const indexTo = widgetData.indexTo || 
+                           widgetData.index || 
+                           widgetData.postalCode || 
+                           widgetData.officeId || 
+                           '';
+            
+            // Извлекаем полный адрес
+            const addressTo = widgetData.addressTo || 
+                             widgetData.address || 
+                             widgetData.fullAddress || 
+                             '';
+            
+            // Извлекаем город
+            const cityTo = widgetData.cityTo || 
+                          widgetData.city || 
+                          '';
+            
+            // Формируем полный адрес
+            const fullAddress = addressTo 
+              ? (cityTo ? `${cityTo}, ${addressTo}` : addressTo)
+              : (cityTo || 'Адрес не указан');
+            
+            // Извлекаем срок доставки
+            const deliveryTime = widgetData.deliveryTime || 
+                               widgetData.days || 
+                               widgetData.deliveryDays || 
+                               '5-7';
+            
+            console.log('📦 Обработанные данные от виджета:', {
+              costInRubles,
+              costInKopecks: widgetData.cashOfDelivery,
+              indexTo,
+              addressTo,
+              cityTo,
+              fullAddress,
+              deliveryTime
+            });
+            
+            // Передаем данные в родительский компонент
+            onSelect({
+              office: {
+                id: indexTo || widgetData.officeId || widgetData.id || '',
+                name: widgetData.officeName || widgetData.name || 'Отделение Почты России',
+                address: fullAddress,
+                postalCode: indexTo,
+                index: indexTo,
+              },
+              cost: costInRubles,
+              deliveryTime: deliveryTime,
+            });
+          }
+          
+          setLoading(false);
+        };
+        
+        // Сохраняем callback в глобальной области для виджета
+        (window as any).__pochtaCartWidgetCallback = callbackFunction;
+
+        // Инициализируем корзинный виджет с официальным callbackFunction
         window.ecomStartCartWidget({
           id: widgetId,
           target: 'pochta-cart-widget',
           cartValue: cartValue, // Сумма корзины в рублях
           cartWeight: cartWeight, // Вес корзины в граммах
-          onSelect: (data: any) => {
-            console.log('🎯 Виджет вернул данные о выбранной доставке:', data);
-            
-            // Сохраняем данные
-            setSelectedData(data);
-            
-            // Обрабатываем данные от виджета
-            if (data && onSelect) {
-              // Виджет может возвращать данные в разных форматах
-              const officeData = {
-                office: {
-                  id: data.officeId || data.id || data.index || data.postalCode || '',
-                  name: data.officeName || data.name || 'Отделение Почты России',
-                  address: data.address || data.fullAddress || '',
-                  postalCode: data.postalCode || data.index || '',
-                  index: data.index || data.postalCode || '',
-                },
-                cost: data.cost || data.deliveryCost || data.price || 0,
-                deliveryTime: data.deliveryTime || data.days || data.deliveryDays || '5-7',
-              };
-              
-              onSelect(officeData);
-            }
-            
-            setLoading(false);
-          }
+          callbackFunction: callbackFunction, // КРИТИЧЕСКИ ВАЖНО: Используем callbackFunction вместо onSelect
         });
         
         console.log(`✅ Корзинный виджет инициализирован с ID ${widgetId}`);

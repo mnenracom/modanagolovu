@@ -149,153 +149,82 @@ const DeliverySelection = () => {
     }
   };
 
-  // Обработка выбора отделения из виджета
-  const handleWidgetOfficeSelected = async (office: {
-    id: string;
-    name: string;
-    address: string;
-    postalCode: string;
-    index?: string;
+  // КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ: Обработка данных от корзинного виджета
+  // Виджет сам рассчитывает стоимость и возвращает полный адрес
+  const handleWidgetOfficeSelected = (widgetData: {
+    office: {
+      id: string;
+      name: string;
+      address: string;
+      postalCode: string;
+      index: string;
+    };
+    cost: number; // Стоимость в рублях (уже обработана виджетом из копеек)
+    deliveryTime: string; // Срок доставки
   }) => {
-    console.log('🎯 handleWidgetOfficeSelected вызван с данными:', office);
+    console.log('🎯 handleWidgetOfficeSelected вызван с данными от виджета:', widgetData);
     
     // Преобразуем данные виджета в формат PostOffice
-    let postOffice: PostOffice = {
-      id: office.id || office.postalCode || office.index || 'unknown',
-      name: office.name || 'Отделение Почты России',
-      address: office.address || '',
+    const postOffice: PostOffice = {
+      id: widgetData.office.id || widgetData.office.index || widgetData.office.postalCode || 'unknown',
+      name: widgetData.office.name || 'Отделение Почты России',
+      address: widgetData.office.address || '', // Виджет возвращает полный адрес
       latitude: 0, // Виджет может не предоставлять координаты
       longitude: 0,
       type: 'post_office',
     };
-    
-    // Если адрес неполный (только индекс), пытаемся получить полные данные через API
-    if ((!postOffice.address || postOffice.address.includes('Почтовый индекс:')) && postOffice.id && postOffice.id.match(/^\d{6}$/)) {
-      try {
-        console.log('🔍 Получаем полные данные об отделении по индексу:', postOffice.id);
-        const fullOfficeData = await russianPostService.getPostOfficeById(postOffice.id);
-        if (fullOfficeData) {
-          postOffice = {
-            ...postOffice,
-            name: fullOfficeData.name || postOffice.name,
-            address: fullOfficeData.address || postOffice.address,
-            workingHours: fullOfficeData.workingHours,
-            latitude: fullOfficeData.latitude,
-            longitude: fullOfficeData.longitude,
-          };
-          console.log('✅ Получены полные данные об отделении:', postOffice);
-        }
-      } catch (error) {
-        console.warn('⚠️ Не удалось получить полные данные об отделении:', error);
-        // Продолжаем с базовыми данными
-      }
-    }
-    
+
     console.log('📮 Преобразовано в PostOffice:', postOffice);
     
     // Устанавливаем выбранное отделение
     setSelectedOffice(postOffice);
     
-    // Автоматически рассчитываем доставку
-    calculateDeliveryForOffice(postOffice);
+    // КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Используем данные от виджета напрямую
+    // Виджет уже рассчитал стоимость и вернул полный адрес
+    setDeliveryCalculation({
+      cost: widgetData.cost, // Стоимость в рублях (уже обработана виджетом)
+      deliveryTime: widgetData.deliveryTime, // Срок доставки
+      type: 'standard',
+      description: 'Доставка Почтой России',
+    });
     
-    toast.success('Отделение выбрано через виджет');
+    // Форматируем стоимость и срок для уведомления
+    const formattedCost = Math.ceil(widgetData.cost).toLocaleString('ru-RU');
+    const formattedTime = widgetData.deliveryTime.includes('-') 
+      ? `${widgetData.deliveryTime} дней`
+      : `${widgetData.deliveryTime} дней`;
+    toast.success(`Доставка выбрана: ${formattedCost} ₽, срок: ${formattedTime}`);
+    
+    // Прокручиваем к кнопке оплаты
+    setTimeout(() => {
+      const paymentButton = document.getElementById('payment-button') || 
+                           document.querySelector('[data-payment-button]');
+      if (paymentButton) {
+        paymentButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 500);
   };
 
-  // Расчет доставки для выбранного отделения
+  // ОБНОВЛЕНО: Виджет сам рассчитывает доставку, эта функция больше не нужна
+  // Но оставляем для обратной совместимости с другими частями кода
   const calculateDeliveryForOffice = async (office: PostOffice) => {
-    setCalculating(true);
-    
-    try {
-      // Рассчитываем общий вес заказа
-      const totalWeight = items.reduce((sum, item) => {
-        return sum + (item.quantity * 100); // Примерно 100г на товар
-      }, 0);
-
-      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Надежное извлечение почтового индекса
-      // Пробуем все возможные варианты полей
-      const postalCode = office.id?.match(/^\d{6}$/)?.[0] || // ID может быть индексом
-                        office.address?.match(/\d{6}/)?.[0] || // Извлекаем из адреса
-                        (office as any).postalCode || 
-                        (office as any).index || 
-                        (office as any).postal_code ||
-                        addressData.postalCode || 
-                        '';
-
-      console.log('📊 Параметры расчета доставки:', {
-        from: senderAddress,
-        to: { 
-          city: addressData.city, 
-          postalCode: postalCode,
-          // Дополнительные поля для отладки
-          officeId: office.id,
-          officeAddress: office.address,
-          officeIndex: (office as any).index
-        },
-        weight: totalWeight,
-        value: getTotalPrice()
-      });
-
-      // КРИТИЧЕСКАЯ ПРОВЕРКА: Убеждаемся, что индекс получен
-      if (!postalCode || postalCode.length !== 6 || !/^\d{6}$/.test(postalCode)) {
-        console.error('❌ ОШИБКА: Не удалось извлечь корректный почтовый индекс!', {
-          officeId: office.id,
-          officeAddress: office.address,
-          extractedPostalCode: postalCode,
-          officeObject: office
-        });
-        toast.error('Не удалось определить почтовый индекс отделения. Пожалуйста, выберите другое отделение или укажите индекс вручную.');
-        setCalculating(false);
-        return;
-      }
-
-      let calculation: DeliveryCalculation | null = null;
-
-      // Рассчитываем через API (без fallback)
-      calculation = await russianPostService.calculateDelivery(
-        senderAddress,
-        {
-          city: addressData.city,
-          postalCode: postalCode, // КРИТИЧЕСКИ ВАЖНО: Передаем извлеченный индекс
-        },
-        totalWeight,
-        getTotalPrice()
-      );
-
-      console.log('✅ Расчет доставки через API успешен:', calculation);
-
-      if (calculation) {
-        setDeliveryCalculation(calculation);
-        // Форматируем стоимость и срок для уведомления
-        const formattedCost = Math.ceil(calculation.cost).toLocaleString('ru-RU');
-        const formattedTime = calculation.deliveryTime.includes('-') 
-          ? `${calculation.deliveryTime} дней`
-          : `${calculation.deliveryTime} дней`;
-        toast.success(`Стоимость доставки: ${formattedCost} ₽, срок: ${formattedTime}`);
-        
-        // Прокручиваем к кнопке оплаты
-        setTimeout(() => {
-          const paymentButton = document.getElementById('payment-button') || 
-                               document.querySelector('[data-payment-button]');
-          if (paymentButton) {
-            paymentButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }, 500);
-      }
-    } catch (error: any) {
-      console.error('❌ Ошибка при расчете доставки:', error);
-      toast.error(error.message || 'Не удалось рассчитать стоимость доставки. Проверьте настройки API.');
-      setDeliveryCalculation(null);
-    } finally {
-      setCalculating(false);
-    }
+    // Виджет корзины сам рассчитывает доставку через callbackFunction
+    // Эта функция больше не используется, но оставлена для совместимости
+    console.log('ℹ️ calculateDeliveryForOffice вызвана, но расчет выполняется виджетом');
   };
 
-  // Выбор точки выдачи и расчет стоимости (для списка отделений через API)
+  // Выбор точки выдачи (для списка отделений через API)
+  // ОБНОВЛЕНО: Расчет стоимости теперь выполняется виджетом
   const handleSelectOffice = async (office: PostOffice) => {
-    console.log('📮 Выбрано отделение:', office);
+    console.log('📮 Выбрано отделение из списка:', office);
     setSelectedOffice(office);
-    calculateDeliveryForOffice(office);
+    
+    // КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Если пользователь выбрал отделение из списка API,
+    // предлагаем использовать виджет для расчета стоимости
+    toast.info('Для расчета стоимости доставки используйте виджет выше');
+    
+    // Можно оставить старую логику как fallback, но лучше использовать виджет
+    // calculateDeliveryForOffice(office);
   };
 
   // Переход к оплате
@@ -392,80 +321,37 @@ const DeliverySelection = () => {
                 </CardContent>
               </Card>
 
-              {/* Виджет Почты России (если API не работает) */}
-              {useWidget && (
-                <>
-                  <Alert className="mb-4">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      API Почты России временно недоступен. Используйте виджет для выбора отделения.
-                      {apiError && (
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          Ошибка: {apiError}
-                        </div>
-                      )}
-                    </AlertDescription>
-                  </Alert>
-                  
-                  {/* Корзинный виджет Почты России */}
-                  <PochtaCartWidget
-                    widgetId={60084}
-                    cartValue={getTotalPrice()}
-                    cartWeight={getCartWeight()}
-                    onSelect={(data) => {
-                      console.log('✅ Данные доставки от корзинного виджета:', data);
-                      setWidgetDeliveryData(data);
-                      
-                      // Преобразуем данные виджета в формат для расчета
-                      const widgetOffice: PostOffice = {
-                        id: data.office.id || data.office.index || 'widget_office',
-                        name: data.office.name || 'Отделение Почты России',
-                        address: data.office.address || '',
-                        latitude: 0,
-                        longitude: 0,
-                        workingHours: '',
-                        distance: null,
-                        type: 'post_office',
-                      };
-                      
-                      setSelectedOffice(widgetOffice);
-                      setDeliveryCalculation({
-                        cost: data.cost,
-                        deliveryTime: data.deliveryTime,
-                        type: 'standard',
-                        description: 'Доставка Почтой России',
-                      });
-                      
-                             const formattedCost = Math.ceil(data.cost).toLocaleString('ru-RU');
-                             toast.success(`Доставка выбрана: ${formattedCost} ₽`);
-                    }}
-                  />
-                  
-                  {/* Старый виджет (оставляем как fallback) */}
-                  <div className="mt-4">
-                    <RussianPostWidget
-                      city={addressData.city}
-                      region={addressData.region}
-                      postalCode={addressData.postalCode}
-                      widgetId={60084}
-                      onOfficeSelected={handleWidgetOfficeSelected}
-                    />
-                  </div>
-                  
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setUseWidget(false);
-                        setApiError(null);
-                        handleSearchPostOffices();
-                      }}
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Попробовать API снова
-                    </Button>
-                  </div>
-                </>
+              {/* КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Корзинный виджет - основной способ выбора доставки */}
+              {/* Виджет сам рассчитывает стоимость и возвращает полный адрес */}
+              <PochtaCartWidget
+                widgetId={60084}
+                cartValue={getTotalPrice()}
+                cartWeight={getCartWeight()}
+                onSelect={handleWidgetOfficeSelected}
+              />
+              
+              {/* Альтернативный способ через API (если пользователь хочет выбрать из списка) */}
+              {!useWidget && (
+                <div className="mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleSearchPostOffices}
+                    disabled={searching || !addressData.city}
+                    className="w-full"
+                  >
+                    {searching ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Поиск точек выдачи...
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="mr-2 h-4 w-4" />
+                        Или найти отделения по адресу
+                      </>
+                    )}
+                  </Button>
+                </div>
               )}
 
               {/* Список точек выдачи (через API) */}
