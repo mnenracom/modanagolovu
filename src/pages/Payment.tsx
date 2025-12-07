@@ -213,9 +213,24 @@ const Payment = () => {
         console.error('Детали ошибки:', {
           message: paymentError.message,
           error: paymentError,
+          details: paymentError.details,
+          originalError: paymentError.originalError,
           stack: paymentError.stack
         });
-        toast.error(paymentError.message || 'Ошибка создания платежа. Заказ создан, но оплата не была инициирована.');
+        
+        // Показываем детальное сообщение об ошибке
+        let errorMessage = paymentError.message || 'Ошибка создания платежа. Заказ создан, но оплата не была инициирована.';
+        
+        // Если есть детали ошибки, добавляем их
+        if (paymentError.details) {
+          if (typeof paymentError.details === 'string') {
+            errorMessage += ` Детали: ${paymentError.details}`;
+          } else if (paymentError.details.error) {
+            errorMessage += ` Детали: ${paymentError.details.error}`;
+          }
+        }
+        
+        toast.error(errorMessage, { duration: 10000 }); // Показываем 10 секунд для длинных сообщений
         // Заказ уже создан, продолжаем
         setLoading(false);
         return; // Не продолжаем дальше, чтобы пользователь мог попробовать еще раз
