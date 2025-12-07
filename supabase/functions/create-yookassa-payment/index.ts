@@ -74,24 +74,58 @@ serve(async (req) => {
       capture: true, // Автоматическое подтверждение платежа
     }
 
-    // Используем правильный URL API (продакшн или тестовый)
+    // API endpoint согласно документации: https://api.yookassa.ru/v3/
     const apiUrl = 'https://api.yookassa.ru/v3/payments'
 
-    // Формируем Basic Auth токен
+    // HTTP Basic Auth согласно документации: -u <Идентификатор магазина>:<Секретный ключ>
+    // В заголовке это: Authorization: Basic base64(shopId:secretKey)
     const authToken = btoa(`${shopId}:${secretKey}`)
 
-    // Формируем заголовки с Basic Auth
+    // Формируем заголовки согласно документации
     const headers = {
       'Content-Type': 'application/json',
-      'Idempotence-Key': `${orderId}-${Date.now()}`,
-      'Authorization': `Basic ${authToken}`,
+      'Idempotence-Key': `${orderId}-${Date.now()}`, // Для обеспечения идемпотентности
+      'Authorization': `Basic ${authToken}`, // HTTP Basic Auth
+      'User-Agent': 'ModnaGolovu/1.0', // Добавляем User-Agent для лучшей совместимости
     }
 
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(paymentRequest),
-    })
+    // Добавляем таймаут для предотвращения долгого ожидания
+    // Таймаут 30 секунд согласно документации ЮКассы
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 секунд
+
+    let response: Response
+    try {
+      response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(paymentRequest),
+        signal: controller.signal, // Добавляем сигнал для таймаута
+      })
+
+      clearTimeout(timeoutId) // Очищаем таймаут при успешном ответе
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId) // Очищаем таймаут при ошибке
+      
+      // Обработка ошибки таймаута
+      if (fetchError.name === 'AbortError' || fetchError.message?.includes('aborted')) {
+        console.error('⏱️ Таймаут запроса к API ЮКассы (30 секунд)')
+        return new Response(
+          JSON.stringify({ 
+            error: 'Таймаут запроса к API ЮКассы. Попробуйте позже.',
+            type: 'TIMEOUT',
+            details: 'Запрос к API ЮКассы превысил 30 секунд'
+          }),
+          { 
+            status: 504,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+      
+      // Пробрасываем другие ошибки в основной catch блок
+      throw fetchError
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
@@ -185,4 +219,3 @@ serve(async (req) => {
     )
   }
 })
-
