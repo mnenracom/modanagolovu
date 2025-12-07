@@ -164,15 +164,21 @@ export default function PaymentGateways() {
     }
 
     // Валидация для ЮKассы
+    // Согласно документации ЮКассы нужны только Shop ID и Secret Key (публичный ключ не нужен)
     if (formData.code === 'yookassa') {
       if (formData.testMode) {
         // В тестовом режиме нужны тестовые ключи
-        if (!formData.testApiKey || !formData.testSecretKey) {
-          toast.error('Для тестового режима ЮKассы заполните тестовый Shop ID и секретный ключ');
+        if (!formData.testSecretKey) {
+          toast.error('Для тестового режима ЮKассы заполните тестовый секретный ключ');
+          return;
+        }
+        // Проверяем Shop ID для тестового режима (если указан testApiKey, используем его как Shop ID)
+        if (!formData.testApiKey && !formData.shopId) {
+          toast.error('Для тестового режима ЮKассы заполните Shop ID (ID магазина)');
           return;
         }
       } else {
-        // В продакшн режиме нужны основные ключи
+        // В продакшн режиме нужны только Shop ID и Secret Key
         if (!formData.shopId || !formData.secretKey) {
           toast.error('Для работы ЮKассы заполните ID магазина и Секретный ключ');
           return;
@@ -531,18 +537,35 @@ export default function PaymentGateways() {
                     </p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label>Публичный ключ (API Key)</Label>
-                  <Input
-                    type="password"
-                    value={formData.apiKey || ''}
-                    onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                    placeholder="Ваш API ключ (опционально)"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Для некоторых платежных систем
-                  </p>
-                </div>
+                {formData.code !== 'yookassa' && (
+                  <div className="space-y-2">
+                    <Label>Публичный ключ (API Key)</Label>
+                    <Input
+                      type="password"
+                      value={formData.apiKey || ''}
+                      onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                      placeholder="Ваш API ключ (опционально)"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Для некоторых платежных систем
+                    </p>
+                  </div>
+                )}
+                {formData.code === 'yookassa' && (
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Публичный ключ (не используется)</Label>
+                    <Input
+                      type="password"
+                      value={formData.apiKey || ''}
+                      onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                      placeholder="Не требуется для API ЮКассы"
+                      disabled
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Для API ЮКассы нужны только Shop ID и Секретный ключ
+                    </p>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>Ключ терминала</Label>
                   <Input
