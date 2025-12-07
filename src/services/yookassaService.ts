@@ -115,12 +115,67 @@ export const yookassaService = {
           error,
           message: error.message,
           name: error.name,
-          stack: error.stack
+          stack: error.stack,
+          // Пытаемся извлечь детали из ошибки
+          errorContext: (error as any).context,
+          errorResponse: (error as any).response,
+          errorBody: (error as any).body
         });
         
-        // Если в data есть детали ошибки, используем их
-        const errorMessage = data?.error || data?.details || error.message || 'Ошибка создания платежа через Edge Function';
-        const errorDetails = data?.details || data;
+        // Пытаемся извлечь детали ошибки из разных источников
+        let errorMessage = error.message || 'Ошибка создания платежа через Edge Function';
+        let errorDetails: any = null;
+        
+        // 1. Проверяем data (может содержать ошибку даже при error)
+        if (data) {
+          errorMessage = data.error || data.details || data.message || errorMessage;
+          errorDetails = data.details || data;
+        }
+        
+        // 2. Пытаемся извлечь из контекста ошибки
+        if ((error as any).context) {
+          try {
+            const context = (error as any).context;
+            if (context.body) {
+              const parsedBody = typeof context.body === 'string' ? JSON.parse(context.body) : context.body;
+              errorMessage = parsedBody.error || parsedBody.details || errorMessage;
+              errorDetails = parsedBody.details || parsedBody;
+            }
+          } catch (e) {
+            // Игнорируем ошибки парсинга
+          }
+        }
+        
+        // 3. Пытаемся извлечь из response
+        if ((error as any).response) {
+          try {
+            const response = (error as any).response;
+            if (response.body) {
+              const parsedBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+              errorMessage = parsedBody.error || parsedBody.details || errorMessage;
+              errorDetails = parsedBody.details || parsedBody;
+            }
+          } catch (e) {
+            // Игнорируем ошибки парсинга
+          }
+        }
+        
+        // 4. Пытаемся извлечь из body напрямую
+        if ((error as any).body) {
+          try {
+            const body = (error as any).body;
+            const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
+            errorMessage = parsedBody.error || parsedBody.details || errorMessage;
+            errorDetails = parsedBody.details || parsedBody;
+          } catch (e) {
+            // Игнорируем ошибки парсинга
+          }
+        }
+        
+        console.error('📋 Извлеченные детали ошибки:', {
+          errorMessage,
+          errorDetails
+        });
         
         const fullError = new Error(errorMessage);
         (fullError as any).details = errorDetails;
