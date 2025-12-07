@@ -111,21 +111,28 @@ serve(async (req) => {
 
     console.log('📦 Тело запроса:', JSON.stringify(paymentRequest, null, 2))
 
-    // Увеличиваем таймаут до 60 секунд (API ЮКассы может быть медленным)
+    // Уменьшаем таймаут до 15 секунд для быстрой диагностики
+    // Если запрос не проходит за 15 секунд, скорее всего проблема с ключами
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 секунд
+    const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 секунд
 
-    console.log('⏱️ Таймаут установлен: 60 секунд')
+    console.log('⏱️ Таймаут установлен: 15 секунд')
     const requestStartTime = Date.now()
 
     let response: Response
     try {
       console.log('🚀 Отправка запроса к API ЮКассы...')
+      console.log('📡 URL:', apiUrl)
+      console.log('🔑 Basic Auth: shopId=' + shopId + ', secretKeyLength=' + secretKey.length)
+      
+      // Пробуем отправить запрос с более коротким таймаутом для диагностики
       response = await fetch(apiUrl, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(paymentRequest),
-        signal: controller.signal, // Добавляем сигнал для таймаута
+        signal: controller.signal,
+        // Добавляем keepalive для лучшей работы с соединением
+        keepalive: false,
       })
 
       const requestDuration = Date.now() - requestStartTime
@@ -137,7 +144,7 @@ serve(async (req) => {
       // Обработка ошибки таймаута
       if (fetchError.name === 'AbortError' || fetchError.message?.includes('aborted')) {
         const requestDuration = Date.now() - requestStartTime
-        console.error('⏱️ Таймаут запроса к API ЮКассы (60 секунд)')
+        console.error('⏱️ Таймаут запроса к API ЮКассы (15 секунд)')
         console.error('⏱️ Время ожидания:', requestDuration, 'ms')
         console.error('🔍 Диагностика:')
         console.error('  - Shop ID:', shopId)
@@ -153,7 +160,7 @@ serve(async (req) => {
           JSON.stringify({ 
             error: 'Таймаут запроса к API ЮКассы. Проверьте правильность Shop ID и Secret Key.',
             type: 'TIMEOUT',
-            details: `Запрос к API ЮКассы превысил 60 секунд. Время ожидания: ${requestDuration}ms`,
+            details: `Запрос к API ЮКассы превысил 15 секунд. Время ожидания: ${requestDuration}ms`,
             suggestion: 'Проверьте настройки в админ-панели: Shop ID должен быть числом, Secret Key должен быть секретным ключом из личного кабинета ЮКассы'
           }),
           { 
