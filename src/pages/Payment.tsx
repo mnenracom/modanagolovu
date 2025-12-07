@@ -160,6 +160,11 @@ const Payment = () => {
       try {
         const returnUrl = `${window.location.origin}/checkout/success?orderId=${order.id}`;
         
+        console.log('💳 Создаем платеж через ЮКассу с виджетом...');
+        console.log('  - Сумма:', totalAmount);
+        console.log('  - Order ID:', order.id);
+        console.log('  - Gateway:', selectedPaymentGateway.name);
+        
         const paymentResult = await yookassaService.createPayment(
           selectedPaymentGateway,
           totalAmount,
@@ -170,6 +175,13 @@ const Payment = () => {
           true // Используем виджет
         );
 
+        console.log('📦 Результат создания платежа:', {
+          hasConfirmationToken: !!paymentResult.confirmationToken,
+          hasPaymentUrl: !!paymentResult.paymentUrl,
+          paymentId: paymentResult.paymentId,
+          confirmationTokenLength: paymentResult.confirmationToken?.length || 0
+        });
+
         // Обновляем заказ с данными платежа
         await ordersService.update(order.id, {
           payment_gateway_id: selectedPaymentGateway.id,
@@ -179,11 +191,16 @@ const Payment = () => {
 
         // Сохраняем токен для виджета
         if (paymentResult.confirmationToken) {
+          console.log('✅ Получен confirmationToken, показываем виджет');
+          console.log('  - Токен (первые 30 символов):', paymentResult.confirmationToken.substring(0, 30) + '...');
           setConfirmationToken(paymentResult.confirmationToken);
           setPaymentId(paymentResult.paymentId);
           setOrderCreated(true);
+          setLoading(false); // Останавливаем загрузку
           toast.success('Заказ создан! Заполните данные для оплаты ниже.');
           return; // Останавливаемся здесь, показываем виджет
+        } else {
+          console.warn('⚠️ confirmationToken не получен, но есть paymentUrl:', !!paymentResult.paymentUrl);
         }
 
         // Если нет токена, используем редирект (fallback)
