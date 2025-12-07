@@ -61,34 +61,71 @@ export const yookassaService = {
 
       // Вызываем Supabase Edge Function вместо прямого вызова API ЮКассы
       // Это решает проблему CORS
-      const { data, error } = await supabase.functions.invoke('create-yookassa-payment', {
-        body: {
-          shopId,
-          secretKey,
-          amount,
-          orderId,
-          orderNumber,
-          description,
-          returnUrl,
-          testMode: gateway.testMode || false,
-          useWidget: true, // Используем виджет вместо редиректа
-        },
+      console.log('📤 Отправка запроса к Edge Function:', {
+        shopId,
+        secretKeyLength: secretKey.length,
+        secretKeyPrefix: secretKey.substring(0, 10) + '...',
+        amount,
+        orderId,
+        testMode: gateway.testMode || false,
+        useWidget: true
       });
+
+      let response;
+      try {
+        response = await supabase.functions.invoke('create-yookassa-payment', {
+          body: {
+            shopId,
+            secretKey,
+            amount,
+            orderId,
+            orderNumber,
+            description,
+            returnUrl,
+            testMode: gateway.testMode || false,
+            useWidget: true, // Используем виджет вместо редиректа
+          },
+        });
+      } catch (invokeError: any) {
+        console.error('❌ Ошибка вызова Edge Function:', invokeError);
+        throw new Error(`Не удалось вызвать Edge Function: ${invokeError.message || invokeError}`);
+      }
+
+      const { data, error } = response;
 
       console.log('📥 Ответ от Edge Function:', {
         hasError: !!error,
+        errorType: error?.constructor?.name,
         errorMessage: error?.message,
+        errorDetails: error,
         hasData: !!data,
+        dataType: typeof data,
         dataKeys: data ? Object.keys(data) : [],
+        fullData: data, // Полные данные для диагностики
         confirmationToken: data?.confirmationToken ? data.confirmationToken.substring(0, 30) + '...' : 'ОТСУТСТВУЕТ',
         paymentUrl: data?.paymentUrl ? 'ПРИСУТСТВУЕТ' : 'ОТСУТСТВУЕТ',
         paymentId: data?.paymentId,
-        error: data?.error
+        errorInData: data?.error,
+        status: data?.status,
+        details: data?.details
       });
 
       if (error) {
-        console.error('❌ Ошибка Edge Function:', error);
-        throw new Error(error.message || 'Ошибка создания платежа через Edge Function');
+        console.error('❌ Ошибка Edge Function:', {
+          error,
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        });
+        
+        // Если в data есть детали ошибки, используем их
+        const errorMessage = data?.error || data?.details || error.message || 'Ошибка создания платежа через Edge Function';
+        const errorDetails = data?.details || data;
+        
+        const fullError = new Error(errorMessage);
+        (fullError as any).details = errorDetails;
+        (fullError as any).originalError = error;
+        throw fullError;
       }
 
       // Проверяем, есть ли ошибка в data
