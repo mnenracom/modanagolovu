@@ -46,12 +46,11 @@ serve(async (req) => {
       )
     }
 
-    // Проверка, что Secret Key не пустой и имеет достаточную длину
-    if (!secretKey || secretKey.length < 20) {
+    // Проверка, что Secret Key не пустой
+    if (!secretKey || secretKey.trim().length === 0) {
       return new Response(
         JSON.stringify({ 
-          error: 'Secret Key не настроен или имеет неверный формат. Проверьте настройки в админ-панели.',
-          details: 'Secret Key должен иметь длину не менее 20 символов'
+          error: 'Secret Key не настроен. Проверьте настройки в админ-панели.'
         }),
         { 
           status: 400,
@@ -60,7 +59,8 @@ serve(async (req) => {
       )
     }
 
-    // Создаем платеж через API ЮКассы
+    // Создаем платеж через API ЮКассы согласно документации
+    // Документация: https://yookassa.ru/developers/using-api/interaction-format
     const paymentRequest = {
       amount: {
         value: amount.toFixed(2),
@@ -71,11 +71,6 @@ serve(async (req) => {
         return_url: returnUrl,
       },
       description: description || `Заказ №${orderNumber || orderId}`,
-      metadata: {
-        orderId: orderId,
-        orderNumber: orderNumber || orderId,
-        testMode: testMode ? 'true' : 'false',
-      },
       capture: true, // Автоматическое подтверждение платежа
     }
 
