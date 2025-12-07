@@ -291,7 +291,10 @@ const DeliverySelection = () => {
             Вернуться в корзину
           </Button>
 
-          <h1 className="text-4xl font-bold mb-8">Выбор доставки</h1>
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold mb-2">Выбор доставки</h1>
+            <p className="text-muted-foreground">Выберите отделение Почты России для получения заказа</p>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Форма поиска и выбор точки */}
@@ -356,28 +359,6 @@ const DeliverySelection = () => {
                 cartWeight={getCartWeight()}
                 onSelect={handleWidgetOfficeSelected}
               />
-
-              {/* Поиск отделений по адресу (альтернативный способ) */}
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  onClick={handleSearchPostOffices}
-                  disabled={searching || !addressData.city}
-                  className="w-full"
-                >
-                  {searching ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Поиск точек выдачи...
-                    </>
-                  ) : (
-                    <>
-                      <MapPin className="mr-2 h-4 w-4" />
-                      Найти отделения по адресу
-                    </>
-                  )}
-                </Button>
-              </div>
 
               {/* Список точек выдачи (через API) */}
               {postOffices.length > 0 && (
@@ -453,14 +434,14 @@ const DeliverySelection = () => {
               )}
 
               {selectedOffice && deliveryCalculation && !calculating && (
-                <Card className="border-primary">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                <Card className="border-2 border-primary shadow-lg">
+                  <CardHeader className="bg-primary/5">
+                    <CardTitle className="flex items-center gap-2 text-primary text-xl">
                       <Package className="h-5 w-5" />
-                      Стоимость доставки
+                      Доставка выбрана
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 pt-6">
                     {/* Информация о выбранном отделении */}
                     <div className="pb-4 border-b space-y-3">
                       <div className="flex items-start gap-3">
@@ -544,10 +525,10 @@ const DeliverySelection = () => {
                       data-payment-button
                       onClick={handleProceedToPayment} 
                       size="lg" 
-                      className="w-full"
+                      className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-6 text-lg"
                     >
                       Перейти к оплате
-                      <ArrowLeft className="ml-2 h-4 w-4 rotate-180" />
+                      <ArrowLeft className="ml-2 h-5 w-5 rotate-180" />
                     </Button>
                   </CardContent>
                 </Card>

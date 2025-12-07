@@ -232,7 +232,10 @@ const Payment = () => {
             Вернуться к выбору доставки
           </Button>
 
-          <h1 className="text-4xl font-bold mb-8">Оплата заказа</h1>
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold mb-2">Оплата заказа</h1>
+            <p className="text-muted-foreground">Заполните контактные данные и выберите способ оплаты</p>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Форма оплаты */}
@@ -283,8 +286,11 @@ const Payment = () => {
                       />
                     </div>
 
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">Способ оплаты</h3>
+                    <div className="pt-4 border-t">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <CreditCard className="h-5 w-5" />
+                        Способ оплаты
+                      </h3>
                       {paymentGateways.length > 0 ? (
                         <div className="space-y-2">
                           {paymentGateways.map((gateway) => (
@@ -330,16 +336,21 @@ const Payment = () => {
                       )}
                     </div>
 
-                    <Button type="submit" size="lg" className="w-full" disabled={loading || !selectedPaymentGateway}>
+                    <Button 
+                      type="submit" 
+                      size="lg" 
+                      className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-6 text-lg" 
+                      disabled={loading || !selectedPaymentGateway}
+                    >
                       {loading ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                           Оформление заказа...
                         </>
                       ) : (
                         <>
-                          Оплатить {totalAmount.toLocaleString()} ₽
-                          <CreditCard className="ml-2 h-4 w-4" />
+                          Оплатить {totalAmount.toLocaleString('ru-RU')} ₽
+                          <CreditCard className="ml-2 h-5 w-5" />
                         </>
                       )}
                     </Button>
@@ -347,19 +358,22 @@ const Payment = () => {
                   </CardContent>
                 </Card>
               ) : confirmationToken ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                <Card className="shadow-lg border-2 border-primary">
+                  <CardHeader className="bg-primary/5">
+                    <CardTitle className="flex items-center gap-2 text-primary text-xl">
                       <CreditCard className="h-5 w-5" />
                       Оплата заказа
                     </CardTitle>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Заказ успешно создан. Заполните данные карты для оплаты.
+                    </p>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-6">
                     <div className="space-y-4">
-                      <Alert>
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          Заказ успешно создан. Заполните данные карты для оплаты.
+                      <Alert className="border-primary/20 bg-primary/5">
+                        <AlertCircle className="h-4 w-4 text-primary" />
+                        <AlertDescription className="text-sm">
+                          Безопасная оплата через ЮКассу. Ваши данные защищены.
                         </AlertDescription>
                       </Alert>
                       <YooKassaWidget
@@ -386,9 +400,9 @@ const Payment = () => {
 
             {/* Итоговая информация */}
             <div>
-              <Card className="sticky top-24">
-                <CardHeader>
-                  <CardTitle>Ваш заказ</CardTitle>
+              <Card className="sticky top-24 shadow-lg">
+                <CardHeader className="bg-muted/50">
+                  <CardTitle className="text-xl">Ваш заказ</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
