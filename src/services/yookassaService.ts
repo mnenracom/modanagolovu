@@ -183,10 +183,31 @@ export const yookassaService = {
         throw fullError;
       }
 
-      // Проверяем, есть ли ошибка в data
+      // Проверяем, есть ли ошибка в data (теперь Edge Function всегда возвращает 200, но с error в теле)
       if (data?.error) {
-        console.error('❌ Ошибка в ответе Edge Function:', data.error);
-        throw new Error(data.error || 'Ошибка создания платежа');
+        console.error('❌ Ошибка в ответе Edge Function:', {
+          error: data.error,
+          type: data.type,
+          status: data.status,
+          statusText: data.statusText,
+          details: data.details,
+          suggestion: data.suggestion
+        });
+        
+        // Формируем детальное сообщение об ошибке
+        let errorMessage = data.error;
+        if (data.suggestion) {
+          errorMessage += ` ${data.suggestion}`;
+        }
+        if (data.details && typeof data.details === 'string') {
+          errorMessage += ` (${data.details})`;
+        }
+        
+        const fullError = new Error(errorMessage);
+        (fullError as any).details = data.details;
+        (fullError as any).type = data.type;
+        (fullError as any).status = data.status;
+        throw fullError;
       }
 
       // Для виджета возвращаем confirmationToken, для редиректа - paymentUrl
