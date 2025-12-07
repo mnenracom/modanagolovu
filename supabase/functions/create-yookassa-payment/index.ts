@@ -81,6 +81,19 @@ serve(async (req) => {
     // В заголовке это: Authorization: Basic base64(shopId:secretKey)
     const authToken = btoa(`${shopId}:${secretKey}`)
 
+    // Логирование перед запросом (без чувствительных данных)
+    console.log('📤 Подготовка запроса к API ЮКассы:', {
+      apiUrl: apiUrl,
+      shopId: shopId,
+      shopIdLength: shopId.length,
+      secretKeyLength: secretKey.length,
+      secretKeyPrefix: secretKey.substring(0, 10) + '...',
+      authTokenLength: authToken.length,
+      amount: amount,
+      orderId: orderId,
+      testMode: testMode
+    })
+
     // Формируем заголовки согласно документации
     const headers = {
       'Content-Type': 'application/json',
@@ -89,13 +102,25 @@ serve(async (req) => {
       'User-Agent': 'ModnaGolovu/1.0', // Добавляем User-Agent для лучшей совместимости
     }
 
-    // Добавляем таймаут для предотвращения долгого ожидания
-    // Таймаут 30 секунд согласно документации ЮКассы
+    console.log('📋 Заголовки запроса:', {
+      'Content-Type': headers['Content-Type'],
+      'Idempotence-Key': headers['Idempotence-Key'],
+      'Authorization': `Basic ${authToken.substring(0, 20)}...`,
+      'User-Agent': headers['User-Agent']
+    })
+
+    console.log('📦 Тело запроса:', JSON.stringify(paymentRequest, null, 2))
+
+    // Увеличиваем таймаут до 60 секунд (API ЮКассы может быть медленным)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 секунд
+    const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 секунд
+
+    console.log('⏱️ Таймаут установлен: 60 секунд')
+    const requestStartTime = Date.now()
 
     let response: Response
     try {
+      console.log('🚀 Отправка запроса к API ЮКассы...')
       response = await fetch(apiUrl, {
         method: 'POST',
         headers: headers,
@@ -103,18 +128,33 @@ serve(async (req) => {
         signal: controller.signal, // Добавляем сигнал для таймаута
       })
 
+      const requestDuration = Date.now() - requestStartTime
+      console.log(`✅ Получен ответ от API ЮКассы за ${requestDuration}ms, статус: ${response.status}`)
       clearTimeout(timeoutId) // Очищаем таймаут при успешном ответе
     } catch (fetchError: any) {
       clearTimeout(timeoutId) // Очищаем таймаут при ошибке
       
       // Обработка ошибки таймаута
       if (fetchError.name === 'AbortError' || fetchError.message?.includes('aborted')) {
-        console.error('⏱️ Таймаут запроса к API ЮКассы (30 секунд)')
+        const requestDuration = Date.now() - requestStartTime
+        console.error('⏱️ Таймаут запроса к API ЮКассы (60 секунд)')
+        console.error('⏱️ Время ожидания:', requestDuration, 'ms')
+        console.error('🔍 Диагностика:')
+        console.error('  - Shop ID:', shopId)
+        console.error('  - Secret Key длина:', secretKey.length)
+        console.error('  - Secret Key начинается с:', secretKey.substring(0, 15))
+        console.error('  - API URL:', apiUrl)
+        console.error('  - Это может означать:')
+        console.error('    1. Неверный Secret Key (сервер не отвечает)')
+        console.error('    2. Проблемы с сетью между Supabase и ЮКассой')
+        console.error('    3. API ЮКассы перегружен')
+        
         return new Response(
           JSON.stringify({ 
-            error: 'Таймаут запроса к API ЮКассы. Попробуйте позже.',
+            error: 'Таймаут запроса к API ЮКассы. Проверьте правильность Shop ID и Secret Key.',
             type: 'TIMEOUT',
-            details: 'Запрос к API ЮКассы превысил 30 секунд'
+            details: `Запрос к API ЮКассы превысил 60 секунд. Время ожидания: ${requestDuration}ms`,
+            suggestion: 'Проверьте настройки в админ-панели: Shop ID должен быть числом, Secret Key должен быть секретным ключом из личного кабинета ЮКассы'
           }),
           { 
             status: 504,
