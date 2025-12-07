@@ -158,6 +158,8 @@ serve(async (req) => {
         console.error('    2. Проблемы с сетью между Supabase и ЮКассой')
         console.error('    3. API ЮКассы перегружен')
         
+        // Возвращаем 200 статус, но с информацией об ошибке в теле
+        // Это нужно, чтобы Supabase SDK передал тело ответа в data
         return new Response(
           JSON.stringify({ 
             error: 'Таймаут запроса к API ЮКассы. Проверьте правильность Shop ID и Secret Key.',
@@ -166,7 +168,7 @@ serve(async (req) => {
             suggestion: 'Проверьте настройки в админ-панели: Shop ID должен быть числом, Secret Key должен быть секретным ключом из личного кабинета ЮКассы'
           }),
           { 
-            status: 504,
+            status: 200, // Возвращаем 200, чтобы Supabase передал тело ответа
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         )
@@ -196,14 +198,18 @@ serve(async (req) => {
         console.error('Secret Key длина:', secretKey ? secretKey.length : 0, 'начинается с:', secretKey ? secretKey.substring(0, 10) + '...' : 'отсутствует')
       }
       
+      // Возвращаем 200 статус, но с информацией об ошибке в теле
+      // Это нужно, чтобы Supabase SDK передал тело ответа в data
       return new Response(
         JSON.stringify({ 
           error: errorData.description || `Ошибка создания платежа: ${response.status}`,
           status: response.status,
-          details: errorData
+          statusText: response.statusText,
+          details: errorData,
+          type: 'YOOKASSA_API_ERROR'
         }),
         { 
-          status: response.status,
+          status: 200, // Возвращаем 200, чтобы Supabase передал тело ответа
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
@@ -237,9 +243,13 @@ serve(async (req) => {
       // Редирект (старый способ)
       if (!paymentData.confirmation?.confirmation_url) {
         return new Response(
-          JSON.stringify({ error: 'Не получен URL для оплаты от ЮКассы' }),
+          JSON.stringify({ 
+            error: 'Не получен URL для оплаты от ЮКассы',
+            type: 'MISSING_URL',
+            details: 'API ЮКассы вернул платеж, но без confirmation_url для редиректа'
+          }),
           { 
-            status: 500,
+            status: 200, // Возвращаем 200, чтобы Supabase передал тело ответа
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         )
@@ -278,16 +288,19 @@ serve(async (req) => {
     }
     
     // Возвращаем детальную информацию об ошибке для отладки
+    // Возвращаем 200 статус, но с информацией об ошибке в теле
+    // Это нужно, чтобы Supabase SDK передал тело ответа в data
     const errorResponse = {
       error: error.message || 'Не удалось создать платеж',
       type: error.constructor?.name || 'UnknownError',
-      details: process.env.DENO_ENV === 'development' ? error.toString() : 'См. логи Edge Function'
+      details: error.toString(),
+      stack: process.env.DENO_ENV === 'development' ? error.stack : undefined
     }
     
     return new Response(
       JSON.stringify(errorResponse),
       { 
-        status: 500,
+        status: 200, // Возвращаем 200, чтобы Supabase передал тело ответа
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
