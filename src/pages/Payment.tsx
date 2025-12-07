@@ -381,7 +381,7 @@ const Payment = () => {
                     </form>
                   </CardContent>
                 </Card>
-              ) : confirmationToken ? (
+              ) : orderCreated && confirmationToken ? (
                 <Card className="shadow-lg border-2 border-primary">
                   <CardHeader className="bg-primary/5">
                     <CardTitle className="flex items-center gap-2 text-primary text-xl">

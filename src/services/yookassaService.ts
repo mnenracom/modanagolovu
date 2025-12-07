@@ -75,12 +75,31 @@ export const yookassaService = {
         },
       });
 
+      console.log('📥 Ответ от Edge Function:', {
+        hasError: !!error,
+        errorMessage: error?.message,
+        hasData: !!data,
+        dataKeys: data ? Object.keys(data) : [],
+        confirmationToken: data?.confirmationToken ? data.confirmationToken.substring(0, 30) + '...' : 'ОТСУТСТВУЕТ',
+        paymentUrl: data?.paymentUrl ? 'ПРИСУТСТВУЕТ' : 'ОТСУТСТВУЕТ',
+        paymentId: data?.paymentId,
+        error: data?.error
+      });
+
       if (error) {
+        console.error('❌ Ошибка Edge Function:', error);
         throw new Error(error.message || 'Ошибка создания платежа через Edge Function');
       }
 
+      // Проверяем, есть ли ошибка в data
+      if (data?.error) {
+        console.error('❌ Ошибка в ответе Edge Function:', data.error);
+        throw new Error(data.error || 'Ошибка создания платежа');
+      }
+
       // Для виджета возвращаем confirmationToken, для редиректа - paymentUrl
-      if (data.confirmationToken) {
+      if (data?.confirmationToken) {
+        console.log('✅ Получен confirmationToken от Edge Function');
         return {
           confirmationToken: data.confirmationToken,
           paymentId: data.paymentId,
@@ -88,9 +107,17 @@ export const yookassaService = {
         };
       }
 
-      if (!data.paymentUrl || !data.paymentId) {
-        throw new Error(data.error || 'Не получен URL для оплаты от ЮКассы');
+      if (data?.paymentUrl && data?.paymentId) {
+        console.log('⚠️ Получен paymentUrl вместо confirmationToken (fallback на редирект)');
+        return {
+          paymentUrl: data.paymentUrl,
+          paymentId: data.paymentId,
+          confirmationToken: '', // Не используется для редиректа
+        };
       }
+
+      console.error('❌ Не получен ни confirmationToken, ни paymentUrl');
+      throw new Error(data?.error || 'Не получен токен для виджета или URL для оплаты от ЮКассы');
 
       return {
         paymentUrl: data.paymentUrl,
