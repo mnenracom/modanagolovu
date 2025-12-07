@@ -192,9 +192,16 @@ const Payment = () => {
           return;
         }
       } catch (paymentError: any) {
-        console.error('Ошибка создания платежа:', paymentError);
+        console.error('❌ Ошибка создания платежа:', paymentError);
+        console.error('Детали ошибки:', {
+          message: paymentError.message,
+          error: paymentError,
+          stack: paymentError.stack
+        });
         toast.error(paymentError.message || 'Ошибка создания платежа. Заказ создан, но оплата не была инициирована.');
         // Заказ уже создан, продолжаем
+        setLoading(false);
+        return; // Не продолжаем дальше, чтобы пользователь мог попробовать еще раз
       }
 
       // Если произошла ошибка - показываем успех
