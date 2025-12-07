@@ -17,6 +17,7 @@ import { paymentGatewaysService } from '@/services/paymentGatewaysService';
 import { yookassaService } from '@/services/yookassaService';
 import { PaymentGateway } from '@/types/delivery';
 import { PostOffice, DeliveryCalculation } from '@/services/russianPostService';
+import { YooKassaWidget } from '@/components/payment/YooKassaWidget';
 
 const Payment = () => {
   const { items, getTotalPrice, getTotalEconomy, clearCart } = useCart();
@@ -34,6 +35,11 @@ const Payment = () => {
   
   const [paymentGateways, setPaymentGateways] = useState<PaymentGateway[]>([]);
   const [selectedPaymentGateway, setSelectedPaymentGateway] = useState<PaymentGateway | null>(null);
+  
+  // Состояние для виджета ЮКассы
+  const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [orderCreated, setOrderCreated] = useState(false);
   
   // Данные доставки из sessionStorage
   const [deliveryData, setDeliveryData] = useState<{
@@ -150,33 +156,41 @@ const Payment = () => {
 
       const order = await ordersService.create(orderData);
 
-      // Создаем платеж через ЮKassa
+      // Создаем платеж через ЮKassa с виджетом
       try {
         const returnUrl = `${window.location.origin}/checkout/success?orderId=${order.id}`;
-        const failUrl = `${window.location.origin}/checkout/error?orderId=${order.id}`;
         
-        const { paymentUrl, paymentId } = await yookassaService.createPayment(
+        const paymentResult = await yookassaService.createPayment(
           selectedPaymentGateway,
           totalAmount,
           String(order.id),
           order.order_number || String(order.id),
           `Заказ №${order.order_number || order.id}`,
-          returnUrl
+          returnUrl,
+          true // Используем виджет
         );
 
         // Обновляем заказ с данными платежа
         await ordersService.update(order.id, {
           payment_gateway_id: selectedPaymentGateway.id,
-          payment_external_id: paymentId,
-          payment_url: paymentUrl,
+          payment_external_id: paymentResult.paymentId,
+          payment_url: paymentResult.paymentUrl || '',
         });
 
-        // Очищаем данные доставки из sessionStorage
-        sessionStorage.removeItem('deliveryData');
+        // Сохраняем токен для виджета
+        if (paymentResult.confirmationToken) {
+          setConfirmationToken(paymentResult.confirmationToken);
+          setPaymentId(paymentResult.paymentId);
+          setOrderCreated(true);
+          toast.success('Заказ создан! Заполните данные для оплаты ниже.');
+          return; // Останавливаемся здесь, показываем виджет
+        }
 
-        // Перенаправляем на оплату
-        window.location.href = paymentUrl;
-        return;
+        // Если нет токена, используем редирект (fallback)
+        if (paymentResult.paymentUrl) {
+          window.location.href = paymentResult.paymentUrl;
+          return;
+        }
       } catch (paymentError: any) {
         console.error('Ошибка создания платежа:', paymentError);
         toast.error(paymentError.message || 'Ошибка создания платежа. Заказ создан, но оплата не была инициирована.');
@@ -222,13 +236,14 @@ const Payment = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Форма оплаты */}
-            <div className="lg:col-span-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Контактная информация</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="lg:col-span-2 space-y-6">
+              {!orderCreated ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Контактная информация</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                       <Label htmlFor="customerName" className="mb-2 block">
                         ФИО * <span className="text-destructive">*</span>
@@ -328,9 +343,45 @@ const Payment = () => {
                         </>
                       )}
                     </Button>
-                  </form>
-                </CardContent>
-              </Card>
+                    </form>
+                  </CardContent>
+                </Card>
+              ) : confirmationToken ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5" />
+                      Оплата заказа
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          Заказ успешно создан. Заполните данные карты для оплаты.
+                        </AlertDescription>
+                      </Alert>
+                      <YooKassaWidget
+                        confirmationToken={confirmationToken}
+                        returnUrl={`${window.location.origin}/checkout/success?orderId=${paymentId}`}
+                        onSuccess={() => {
+                          toast.success('Оплата успешно обработана!');
+                          clearCart();
+                          sessionStorage.removeItem('deliveryData');
+                          setTimeout(() => {
+                            navigate(`/checkout/success?orderId=${paymentId}`);
+                          }, 1000);
+                        }}
+                        onError={(error) => {
+                          console.error('Ошибка виджета:', error);
+                          toast.error('Ошибка при обработке платежа. Попробуйте еще раз.');
+                        }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
             </div>
 
             {/* Итоговая информация */}

@@ -18,7 +18,7 @@ serve(async (req) => {
 
   try {
     // Получаем параметры из запроса
-    const { shopId: rawShopId, secretKey, amount: rawAmount, orderId, orderNumber, description, returnUrl, testMode } = await req.json()
+    const { shopId: rawShopId, secretKey, amount: rawAmount, orderId, orderNumber, description, returnUrl, testMode, useWidget } = await req.json()
 
     // Проверка наличия обязательных параметров
     if (!rawShopId || !secretKey || !rawAmount || !orderId || !returnUrl) {
@@ -61,14 +61,16 @@ serve(async (req) => {
 
     // Создаем платеж через API ЮКассы согласно документации
     // Документация: https://yookassa.ru/developers/using-api/interaction-format
+    // Для виджета используем тип "embedded", для редиректа - "redirect"
+    
     const paymentRequest = {
       amount: {
         value: amount.toFixed(2),
         currency: 'RUB',
       },
       confirmation: {
-        type: 'redirect',
-        return_url: returnUrl,
+        type: useWidget ? 'embedded' : 'redirect', // embedded для виджета, redirect для редиректа
+        return_url: returnUrl, // Нужен даже для embedded
       },
       description: description || `Заказ №${orderNumber || orderId}`,
       capture: true, // Автоматическое подтверждение платежа
@@ -209,25 +211,50 @@ serve(async (req) => {
 
     const paymentData = await response.json()
 
-    if (!paymentData.confirmation?.confirmation_url) {
+    // Для виджета нужен confirmation_token, для редиректа - confirmation_url
+    if (useWidget) {
+      if (!paymentData.confirmation?.confirmation_token) {
+        return new Response(
+          JSON.stringify({ error: 'Не получен токен для виджета от ЮКассы' }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
       return new Response(
-        JSON.stringify({ error: 'Не получен URL для оплаты от ЮКассы' }),
-        { 
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        JSON.stringify({
+          confirmationToken: paymentData.confirmation.confirmation_token,
+          paymentId: paymentData.id,
+          paymentStatus: paymentData.status,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    } else {
+      // Редирект (старый способ)
+      if (!paymentData.confirmation?.confirmation_url) {
+        return new Response(
+          JSON.stringify({ error: 'Не получен URL для оплаты от ЮКассы' }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
+      return new Response(
+        JSON.stringify({
+          paymentUrl: paymentData.confirmation.confirmation_url,
+          paymentId: paymentData.id,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       )
     }
-
-    return new Response(
-      JSON.stringify({
-        paymentUrl: paymentData.confirmation.confirmation_url,
-        paymentId: paymentData.id,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
   } catch (error: any) {
     console.error('❌ КРИТИЧЕСКАЯ ОШИБКА в функции create-yookassa-payment:', error)
     console.error('Тип ошибки:', error.constructor?.name)

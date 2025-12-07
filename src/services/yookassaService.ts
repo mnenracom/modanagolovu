@@ -45,8 +45,9 @@ export const yookassaService = {
     orderId: string,
     orderNumber: string,
     description: string,
-    returnUrl: string
-  ): Promise<{ paymentUrl: string; paymentId: string }> {
+    returnUrl: string,
+    useWidget: boolean = false
+  ): Promise<{ paymentUrl: string; paymentId: string; confirmationToken?: string }> {
     try {
       // Используем тестовые или продакшн ключи
       const shopId = gateway.shopId || '';
@@ -70,11 +71,21 @@ export const yookassaService = {
           description,
           returnUrl,
           testMode: gateway.testMode || false,
+          useWidget: true, // Используем виджет вместо редиректа
         },
       });
 
       if (error) {
         throw new Error(error.message || 'Ошибка создания платежа через Edge Function');
+      }
+
+      // Для виджета возвращаем confirmationToken, для редиректа - paymentUrl
+      if (data.confirmationToken) {
+        return {
+          confirmationToken: data.confirmationToken,
+          paymentId: data.paymentId,
+          paymentUrl: '', // Не используется для виджета
+        };
       }
 
       if (!data.paymentUrl || !data.paymentId) {
@@ -84,6 +95,7 @@ export const yookassaService = {
       return {
         paymentUrl: data.paymentUrl,
         paymentId: data.paymentId,
+        confirmationToken: '', // Не используется для редиректа
       };
     } catch (error: any) {
       console.error('Ошибка создания платежа ЮКассы:', error);
