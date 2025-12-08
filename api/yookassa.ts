@@ -1,7 +1,10 @@
 // Vercel Serverless Function для проксирования запросов к API ЮКассы
 // Обходит TLS проблемы в Supabase Edge Functions (Deno)
+// Использует нативный https модуль Node.js для более надежного TLS
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import https from 'https';
+import { URL } from 'url';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
@@ -57,29 +60,77 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       capture: true,
     };
 
-    // 4. Выполнение запроса к ЮКассе
-    const yookassaResponse = await fetch('https://api.yookassa.ru/v3/payments', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotence-Key': idempotenceKey,
-        'Authorization': `Basic ${authToken}`,
-      },
-      body: JSON.stringify(paymentRequest),
+    // 4. Выполнение запроса к ЮКассе через нативный https модуль (более надежный TLS)
+    const requestBody = JSON.stringify(paymentRequest);
+    const apiUrl = new URL('https://api.yookassa.ru/v3/payments');
+    
+    const responseData = await new Promise<any>((resolve, reject) => {
+      const options = {
+        hostname: apiUrl.hostname,
+        port: 443,
+        path: apiUrl.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(requestBody),
+          'Idempotence-Key': idempotenceKey,
+          'Authorization': `Basic ${authToken}`,
+          'User-Agent': 'YooKassa-NodeJS-Client/1.0',
+        },
+        // Настройки TLS для более надежного соединения
+        rejectUnauthorized: true,
+        timeout: 30000, // 30 секунд
+      };
+
+      const req = https.request(options, (response) => {
+        let data = '';
+        
+        response.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        response.on('end', () => {
+          try {
+            const parsed = data ? JSON.parse(data) : {};
+            resolve({ 
+              ok: response.statusCode && response.statusCode >= 200 && response.statusCode < 300,
+              status: response.statusCode || 500,
+              statusText: response.statusMessage || 'Unknown',
+              data: parsed,
+            });
+          } catch (e) {
+            reject(new Error(`Failed to parse response: ${e}`));
+          }
+        });
+      });
+
+      req.on('error', (error) => {
+        reject(error);
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Request timeout'));
+      });
+
+      req.write(requestBody);
+      req.end();
     });
 
-    const responseData = await yookassaResponse.json().catch(() => ({}));
+    const yookassaResponse = responseData;
 
     // 5. Обработка ответа
     if (!yookassaResponse.ok) {
       return res.status(200).json({
-        error: responseData.description || `Ошибка создания платежа: ${yookassaResponse.status}`,
+        error: yookassaResponse.data?.description || `Ошибка создания платежа: ${yookassaResponse.status}`,
         status: yookassaResponse.status,
         statusText: yookassaResponse.statusText,
-        details: responseData,
+        details: yookassaResponse.data,
         type: 'YOOKASSA_API_ERROR'
       });
     }
+
+    const responseData = yookassaResponse.data;
 
     // 6. Возврат данных клиенту
     if (useWidget) {
