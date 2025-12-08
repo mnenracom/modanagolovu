@@ -158,6 +158,7 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('❌ КРИТИЧЕСКАЯ ОШИБКА в функции create-yookassa-payment:', error)
     
+    // Возвращаем 200 статус с ошибкой в теле, чтобы Supabase SDK передал данные
     return new Response(
       JSON.stringify({
         error: error.message || 'Не удалось создать платеж',
@@ -165,7 +166,7 @@ serve(async (req) => {
         details: error.toString()
       }),
       { 
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
