@@ -143,7 +143,7 @@ export const Header = () => {
       {activeTheme === 'spring' && (
         <div className="absolute top-0 left-0 right-0 h-1 spring-garland opacity-60" />
       )}
-      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <div className="container mx-auto px-2 sm:px-3 py-2 sm:py-2">
         {/* Мобильная версия: всё в одну строку */}
         <div className="md:hidden flex items-center justify-between gap-2">
           {/* Мобильное меню слева */}
