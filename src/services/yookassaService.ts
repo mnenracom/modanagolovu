@@ -1,11 +1,10 @@
 // src/services/yookassaService.ts
-// Предполагается, что 'supabase' уже импортирован или доступен в этом файле.
-
-import { supabase } from '@/lib/supabase';
+// Использует Vercel Serverless Function для проксирования запросов к API ЮКассы
+// Обходит TLS проблемы в Supabase Edge Functions (Deno)
 
 export const yookassaService = {
   /**
-   * Создает платеж через Supabase Edge Function, вызывающую API ЮКассы.
+   * Создает платеж через Vercel Serverless Function (Node.js), проксирующую запросы к API ЮКассы.
    * @param gateway Объект настроек шлюза (должен содержать shopId, secretKey, testSecretKey, testMode).
    * @param amount Сумма платежа.
    * @param orderId Уникальный ID заказа.
@@ -29,8 +28,13 @@ export const yookassaService = {
 
     if (!shopId || !secretKey) throw new Error('Не настроены ключи ЮКассы. Проверьте настройки в админ-панели.')
 
-    const { data, error } = await supabase.functions.invoke('create-yookassa-payment', {
-      body: { 
+    // ИЗМЕНЕНИЕ: Вызов Vercel Serverless Function вместо Supabase Edge Function
+    const response = await fetch('/api/yookassa', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({ 
         shopId, 
         secretKey, 
         amount, 
@@ -40,19 +44,17 @@ export const yookassaService = {
         returnUrl, 
         testMode: gateway.testMode || false, 
         useWidget: useWidget // ИСПРАВЛЕНИЕ #2: Используем аргумент функции
-      },
+      }),
     })
 
-    if (error) {
-      // Пытаемся вытащить подробности из data/response/body/context
-      let msg = error.message || 'Ошибка создания платежа через Edge Function'
-      if (data) msg = data.error || data.details || data.message || msg
-      const err = new Error(msg)
-      ;(err as any).details = data?.details || data || error
-      throw err
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || `Ошибка сети/прокси: ${response.status}`)
     }
 
-    if (!data) throw new Error('Пустой ответ от Edge Function')
+    const data = await response.json()
+
+    if (!data) throw new Error('Пустой ответ от прокси/сервера')
     if (data.error) {
       const err = new Error(data.error)
       ;(err as any).details = data.details
