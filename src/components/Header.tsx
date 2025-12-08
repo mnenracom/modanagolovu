@@ -129,13 +129,13 @@ export const Header = () => {
         <>
           {/* Кастомное изображение мишуры (если загружено) */}
           <div 
-            className="absolute top-0 left-0 right-0 h-8 pointer-events-none z-10"
+            className="absolute top-0 left-0 right-0 h-12 sm:h-16 pointer-events-none z-10"
             style={{
               backgroundImage: 'url(/tinsel-header.png)',
-              backgroundSize: 'cover',
+              backgroundSize: 'auto 100%',
               backgroundRepeat: 'repeat-x',
               backgroundPosition: 'top center',
-              opacity: 0.8,
+              opacity: 0.9,
             }}
           />
           {/* Fallback на CSS гирлянду если изображение не загружено */}
