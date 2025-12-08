@@ -354,6 +354,19 @@ export const productsService = {
     if (productData.wbNmId !== undefined) insertData.wb_nm_id = productData.wbNmId || null;
     if (productData.ozonProductId !== undefined) insertData.ozon_product_id = productData.ozonProductId || null;
     if (productData.ozonOfferId !== undefined) insertData.ozon_offer_id = productData.ozonOfferId || null;
+    // Поля для веса и габаритов
+    if (productData.weight_grams !== undefined && productData.weight_grams !== null && productData.weight_grams !== '') {
+      insertData.weight_grams = parseInt(String(productData.weight_grams));
+    }
+    if (productData.length_cm !== undefined && productData.length_cm !== null && productData.length_cm !== '') {
+      insertData.length_cm = parseFloat(String(productData.length_cm));
+    }
+    if (productData.width_cm !== undefined && productData.width_cm !== null && productData.width_cm !== '') {
+      insertData.width_cm = parseFloat(String(productData.width_cm));
+    }
+    if (productData.height_cm !== undefined && productData.height_cm !== null && productData.height_cm !== '') {
+      insertData.height_cm = parseFloat(String(productData.height_cm));
+    }
 
     const { data, error } = await supabase
       .from('products')
@@ -514,6 +527,20 @@ export const productsService = {
     }
     if ('import_metadata' in productData && productData.import_metadata !== undefined) {
       updateData.import_metadata = productData.import_metadata;
+    }
+
+    // Поля для веса и габаритов
+    if (productData.weight_grams !== undefined) {
+      updateData.weight_grams = productData.weight_grams !== null && productData.weight_grams !== '' ? parseInt(String(productData.weight_grams)) : null;
+    }
+    if (productData.length_cm !== undefined) {
+      updateData.length_cm = productData.length_cm !== null && productData.length_cm !== '' ? parseFloat(String(productData.length_cm)) : null;
+    }
+    if (productData.width_cm !== undefined) {
+      updateData.width_cm = productData.width_cm !== null && productData.width_cm !== '' ? parseFloat(String(productData.width_cm)) : null;
+    }
+    if (productData.height_cm !== undefined) {
+      updateData.height_cm = productData.height_cm !== null && productData.height_cm !== '' ? parseFloat(String(productData.height_cm)) : null;
     }
 
     const { data, error } = await supabase
