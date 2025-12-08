@@ -13,22 +13,19 @@ interface Snowflake {
   type: 'snowflake' | 'star';
 }
 
-interface Confetti {
+interface ChristmasBall {
   id: number;
   left: number;
   top: number;
   size: number;
-  duration: number;
-  delay: number;
   color: string;
-  rotation: number;
+  delay: number;
 }
 
 export const NewYearDecorations = () => {
   const location = useLocation();
   const { activeTheme } = useTheme();
   const [snowflakes, setSnowflakes] = useState<Snowflake[]>([]);
-  const [confetti, setConfetti] = useState<Confetti[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   
   // Проверяем, не находимся ли мы в админке
@@ -51,55 +48,33 @@ export const NewYearDecorations = () => {
   useEffect(() => {
     if (!shouldShow || isAdminRoute) return;
 
-    // Создаем снежинки и звёзды
+    // Создаем оптимизированные снежинки
     const createSnowflakes = () => {
       const flakes: Snowflake[] = [];
-      // На мобильных меньше снежинок для производительности
-      const count = isMobile ? 30 : 80;
+      // Оптимизированное количество для лучшей производительности
+      const count = isMobile ? 20 : 50;
       for (let i = 0; i < count; i++) {
         flakes.push({
           id: i,
           left: Math.random() * 100,
           top: -10 - Math.random() * 20,
-          size: isMobile ? Math.random() * 3 + 1 : Math.random() * 5 + 1.5, // Меньше размер на мобильных
-          duration: Math.random() * 4 + 6,
-          delay: Math.random() * 8,
-          type: Math.random() > 0.7 ? 'star' : 'snowflake',
+          size: isMobile ? Math.random() * 2.5 + 1 : Math.random() * 4 + 1.5,
+          duration: Math.random() * 3 + 8, // Медленнее для плавности
+          delay: Math.random() * 10,
+          type: Math.random() > 0.8 ? 'star' : 'snowflake',
         });
       }
       setSnowflakes(flakes);
     };
 
-    // Создаем конфетти (уменьшенная активность)
-    const createConfetti = () => {
-      const confettiItems: Confetti[] = [];
-      const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#ff69b4'];
-      // На мобильных меньше конфетти
-      const count = isMobile ? 10 : 20;
-      for (let i = 0; i < count; i++) {
-        confettiItems.push({
-          id: i,
-          left: Math.random() * 100,
-          top: -5 - Math.random() * 10,
-          size: isMobile ? Math.random() * 4 + 2 : Math.random() * 6 + 3, // Меньше размер на мобильных
-          duration: Math.random() * 4 + 5, // Увеличили длительность (медленнее)
-          delay: Math.random() * 8, // Увеличили задержку
-          color: colors[Math.floor(Math.random() * colors.length)],
-          rotation: Math.random() * 360,
-        });
-      }
-      setConfetti(confettiItems);
-    };
-
     createSnowflakes();
-    createConfetti();
-  }, [shouldShow, isAdminRoute]);
+  }, [shouldShow, isAdminRoute, isMobile]);
 
   if (!shouldShow || isAdminRoute) return null;
 
   return (
     <>
-      {/* Снежинки и звёзды */}
+      {/* Оптимизированные снежинки и звёзды */}
       <div className="fixed inset-0 pointer-events-none z-[68] overflow-hidden">
         {snowflakes.map((flake) => (
           <div
@@ -112,6 +87,7 @@ export const NewYearDecorations = () => {
               animation: `snowfall ${flake.duration}s linear infinite`,
               animationDelay: `${flake.delay}s`,
               filter: 'drop-shadow(0 0 2px rgba(255,255,255,0.5))',
+              transform: 'translateZ(0)', // GPU acceleration
             }}
           >
             {flake.type === 'star' ? '⭐' : '❄'}
@@ -119,32 +95,9 @@ export const NewYearDecorations = () => {
         ))}
       </div>
 
-      {/* Конфетти (уменьшенная активность) */}
-      <div className="fixed inset-0 pointer-events-none z-[67] overflow-hidden">
-        {confetti.map((item) => (
-          <div
-            key={item.id}
-            className="absolute new-year-confetti"
-            style={{
-              left: `${item.left}%`,
-              top: `${item.top}%`,
-              width: `${item.size}px`,
-              height: `${item.size}px`,
-              backgroundColor: item.color,
-              animation: `confetti-fall ${item.duration}s linear infinite`,
-              animationDelay: `${item.delay}s`,
-              transform: `rotate(${item.rotation}deg)`,
-              borderRadius: '50%',
-              boxShadow: `0 0 ${item.size / 2}px ${item.color}`,
-              opacity: 0.6, // Уменьшили непрозрачность
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Блестящие звёздочки (уменьшенное количество, меньше на мобильных) */}
+      {/* Оптимизированные блестящие звёздочки (меньше на мобильных) */}
       <div className="fixed inset-0 pointer-events-none z-[66] overflow-hidden hidden sm:block">
-        {[...Array(10)].map((_, i) => (
+        {[...Array(isMobile ? 5 : 8)].map((_, i) => (
           <div
             key={i}
             className="absolute new-year-sparkle"
@@ -153,6 +106,7 @@ export const NewYearDecorations = () => {
               top: `${Math.random() * 100}%`,
               animation: `sparkle ${2 + Math.random() * 2}s ease-in-out infinite`,
               animationDelay: `${Math.random() * 2}s`,
+              transform: 'translateZ(0)', // GPU acceleration
             }}
           >
             <Star className="w-3 h-3 text-yellow-300 fill-yellow-300" />
@@ -160,9 +114,9 @@ export const NewYearDecorations = () => {
         ))}
       </div>
 
-      {/* Дополнительные блестящие частицы (меньше на мобильных) */}
+      {/* Оптимизированные блестящие частицы */}
       <div className="fixed inset-0 pointer-events-none z-[66] overflow-hidden">
-        {[...Array(isMobile ? 10 : 25)].map((_, i) => (
+        {[...Array(isMobile ? 5 : 15)].map((_, i) => (
           <div
             key={`sparkle-${i}`}
             className="absolute new-year-sparkle"
@@ -171,6 +125,7 @@ export const NewYearDecorations = () => {
               top: `${Math.random() * 100}%`,
               animation: `sparkle ${1.5 + Math.random() * 1.5}s ease-in-out infinite`,
               animationDelay: `${Math.random() * 2}s`,
+              transform: 'translateZ(0)', // GPU acceleration
             }}
           >
             <Sparkles className="w-2 h-2 text-yellow-300" />
