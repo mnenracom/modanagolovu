@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { categoriesService } from '@/services/categoriesService';
 import { transformCategoryFromSupabase } from '@/types/categorySupabase';
 import { Category } from '@/types/categorySupabase';
@@ -95,10 +95,12 @@ export const Header = () => {
       }
     };
 
-    loadCategories();
+    // Загружаем с небольшой задержкой, чтобы не блокировать рендеринг
+    const timer = setTimeout(loadCategories, 0);
+    return () => clearTimeout(timer);
   }, [isAdminRoute]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
       await signOut();
       navigate('/');
@@ -107,7 +109,7 @@ export const Header = () => {
       console.error('Ошибка выхода:', error);
       toast.error('Ошибка при выходе');
     }
-  };
+  }, [signOut, navigate]);
 
   const navigation = [
     { name: 'Главная', href: '/' },

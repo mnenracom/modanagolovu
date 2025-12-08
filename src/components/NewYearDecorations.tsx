@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Sparkles, Star } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { SparklesLayer } from './SparklesLayer';
 
 interface Snowflake {
   id: number;
@@ -45,30 +45,30 @@ export const NewYearDecorations = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Мемоизируем генерацию снежинок для избежания лишних ререндеров
+  const snowflakesData = useMemo(() => {
+    if (!shouldShow || isAdminRoute) return [];
+    
+    const flakes: Snowflake[] = [];
+    const count = isMobile ? 20 : 50;
+    for (let i = 0; i < count; i++) {
+      flakes.push({
+        id: i,
+        left: Math.random() * 100,
+        top: -10 - Math.random() * 20,
+        size: isMobile ? Math.random() * 2.5 + 1 : Math.random() * 4 + 1.5,
+        duration: Math.random() * 3 + 8,
+        delay: Math.random() * 10,
+        type: Math.random() > 0.8 ? 'star' : 'snowflake',
+      });
+    }
+    return flakes;
+  }, [shouldShow, isAdminRoute, isMobile]);
+
   useEffect(() => {
     if (!shouldShow || isAdminRoute) return;
-
-    // Создаем оптимизированные снежинки
-    const createSnowflakes = () => {
-      const flakes: Snowflake[] = [];
-      // Оптимизированное количество для лучшей производительности
-      const count = isMobile ? 20 : 50;
-      for (let i = 0; i < count; i++) {
-        flakes.push({
-          id: i,
-          left: Math.random() * 100,
-          top: -10 - Math.random() * 20,
-          size: isMobile ? Math.random() * 2.5 + 1 : Math.random() * 4 + 1.5,
-          duration: Math.random() * 3 + 8, // Медленнее для плавности
-          delay: Math.random() * 10,
-          type: Math.random() > 0.8 ? 'star' : 'snowflake',
-        });
-      }
-      setSnowflakes(flakes);
-    };
-
-    createSnowflakes();
-  }, [shouldShow, isAdminRoute, isMobile]);
+    setSnowflakes(snowflakesData);
+  }, [shouldShow, isAdminRoute, snowflakesData]);
 
   if (!shouldShow || isAdminRoute) return null;
 
