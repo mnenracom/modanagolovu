@@ -31,8 +31,9 @@ serve(async (req) => {
       )
     }
 
-    // Принудительное преобразование типов для гарантии корректного формата
-    const shopId = String(rawShopId) // Гарантируем, что это строка
+    // Принудительное преобразование и очистка
+    const shopId = String(rawShopId).trim()
+    const cleanSecretKey = String(secretKey).trim()
     const amount = Number(rawAmount) // Гарантируем, что это число
 
     // Проверка, что amount является валидным числом
@@ -47,7 +48,7 @@ serve(async (req) => {
     }
 
     // Проверка, что Secret Key не пустой
-    if (!secretKey || secretKey.trim().length === 0) {
+    if (!cleanSecretKey || cleanSecretKey.length === 0) {
       return new Response(
         JSON.stringify({ 
           error: 'Secret Key не настроен. Проверьте настройки в админ-панели.'
@@ -78,7 +79,7 @@ serve(async (req) => {
     const apiUrl = 'https://api.yookassa.ru/v3/payments'
 
     // Формируем Basic Auth токен
-    const authToken = btoa(`${shopId}:${secretKey}`)
+    const authToken = btoa(`${shopId}:${cleanSecretKey}`)
 
     // Формируем заголовки с Basic Auth
     const headers = {
