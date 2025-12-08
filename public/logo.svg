@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" width="400" height="100">
+  <!-- Placeholder для логотипа МОДАНАГОЛОВУ -->
+  <!-- Замените этот файл на ваш PNG логотип с такими же пропорциями (4:1) -->
+  <!-- Рекомендуемый размер: 200-250px ширина, 50-60px высота -->
+  <rect width="400" height="100" fill="#ef4444" rx="8"/>
+  <text x="200" y="60" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="white" text-anchor="middle">
+    МОДАНАГОЛОВУ
+  </text>
+</svg>
+

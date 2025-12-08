@@ -206,21 +206,17 @@ export const Header = () => {
             </SheetContent>
           </Sheet>
 
-          {/* Название по центру */}
-          <Link to="/" className="flex items-center space-x-1 sm:space-x-2 flex-1 justify-center">
-            <h1 className={`text-lg sm:text-xl font-bold ${
-              activeTheme === 'newyear' ? 'new-year-gradient' : 
-              activeTheme === 'spring' ? 'spring-gradient' : 
-              'bg-gradient-primary bg-clip-text text-transparent'
-            }`}>
-              {activeTheme === 'newyear' && <span className="hidden sm:inline">🎄 </span>}
-              {activeTheme === 'newyear' && 'МОДАНАГОЛОВУ'}
-              {activeTheme === 'newyear' && <span className="hidden sm:inline"> ✨</span>}
-              {activeTheme === 'spring' && <span className="hidden sm:inline">🌸 </span>}
-              {activeTheme === 'spring' && 'МОДАНАГОЛОВУ'}
-              {activeTheme === 'spring' && <span className="hidden sm:inline"> 🌸</span>}
-              {activeTheme === 'none' && 'МОДАНАГОЛОВУ'}
-            </h1>
+          {/* Логотип по центру */}
+          <Link to="/" className="flex items-center flex-1 justify-center">
+            <img 
+              src="/logo.png" 
+              alt="МОДАНАГОЛОВУ" 
+              className="h-8 sm:h-10 w-auto object-contain"
+              onError={(e) => {
+                // Fallback на SVG если PNG не найден
+                (e.target as HTMLImageElement).src = '/logo.svg';
+              }}
+            />
           </Link>
           
           {/* Иконки справа */}
@@ -253,16 +249,16 @@ export const Header = () => {
 
         {/* Десктопная версия: всё в одну строку */}
         <div className="hidden md:flex items-center justify-between gap-2">
-          <Link to="/" className="flex items-center space-x-2">
-            <h1 className={`text-xl md:text-2xl font-bold ${
-              activeTheme === 'newyear' ? 'new-year-gradient' : 
-              activeTheme === 'spring' ? 'spring-gradient' : 
-              'bg-gradient-primary bg-clip-text text-transparent'
-            }`}>
-              {activeTheme === 'newyear' && '🎄 МОДАНАГОЛОВУ ✨'}
-              {activeTheme === 'spring' && '🌸 МОДАНАГОЛОВУ 🌸'}
-              {activeTheme === 'none' && 'МОДАНАГОЛОВУ'}
-            </h1>
+          <Link to="/" className="flex items-center">
+            <img 
+              src="/logo.png" 
+              alt="МОДАНАГОЛОВУ" 
+              className="h-10 md:h-12 w-auto object-contain"
+              onError={(e) => {
+                // Fallback на SVG если PNG не найден
+                (e.target as HTMLImageElement).src = '/logo.svg';
+              }}
+            />
           </Link>
 
           {/* Desktop Navigation */}
