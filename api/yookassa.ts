@@ -64,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const requestBody = JSON.stringify(paymentRequest);
     const apiUrl = new URL('https://api.yookassa.ru/v3/payments');
     
-    const responseData = await new Promise<any>((resolve, reject) => {
+    const yookassaResponse = await new Promise<{ ok: boolean; status: number; statusText: string; data: any }>((resolve, reject) => {
       const options = {
         hostname: apiUrl.hostname,
         port: 443,
@@ -93,13 +93,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           try {
             const parsed = data ? JSON.parse(data) : {};
             resolve({ 
-              ok: response.statusCode && response.statusCode >= 200 && response.statusCode < 300,
+              ok: response.statusCode !== undefined && response.statusCode >= 200 && response.statusCode < 300,
               status: response.statusCode || 500,
               statusText: response.statusMessage || 'Unknown',
               data: parsed,
             });
-          } catch (e) {
-            reject(new Error(`Failed to parse response: ${e}`));
+          } catch (e: any) {
+            reject(new Error(`Failed to parse response: ${e?.message || String(e)}`));
           }
         });
       });
@@ -117,8 +117,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       req.end();
     });
 
-    const yookassaResponse = responseData;
-
     // 5. Обработка ответа
     if (!yookassaResponse.ok) {
       return res.status(200).json({
@@ -130,23 +128,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const responseData = yookassaResponse.data;
+    const paymentData = yookassaResponse.data;
 
     // 6. Возврат данных клиенту
     if (useWidget) {
-      if (!responseData.confirmation?.confirmation_token) {
+      if (!paymentData.confirmation?.confirmation_token) {
         return res.status(200).json({
           error: 'Не получен токен для виджета от ЮКассы'
         });
       }
 
       return res.status(200).json({
-        confirmationToken: responseData.confirmation.confirmation_token,
-        paymentId: responseData.id,
-        paymentStatus: responseData.status,
+        confirmationToken: paymentData.confirmation.confirmation_token,
+        paymentId: paymentData.id,
+        paymentStatus: paymentData.status,
       });
     } else {
-      if (!responseData.confirmation?.confirmation_url) {
+      if (!paymentData.confirmation?.confirmation_url) {
         return res.status(200).json({
           error: 'Не получен URL для оплаты от ЮКассы',
           type: 'MISSING_URL',
@@ -155,8 +153,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       return res.status(200).json({
-        paymentUrl: responseData.confirmation.confirmation_url,
-        paymentId: responseData.id,
+        paymentUrl: paymentData.confirmation.confirmation_url,
+        paymentId: paymentData.id,
       });
     }
 
