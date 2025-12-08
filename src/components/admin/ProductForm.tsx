@@ -48,6 +48,11 @@ const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) => {
     sizes: product?.sizes || [],
     priceRanges: product?.priceRanges || [{ minQuantity: 1, maxQuantity: null, price: product?.retailPrice ?? product?.price ?? 0 }],
     variations: product?.variations || [],
+    // Поля для веса и габаритов
+    weight_grams: product?.weightGrams || '',
+    length_cm: product?.lengthCm || '',
+    width_cm: product?.widthCm || '',
+    height_cm: product?.heightCm || '',
   });
 
   // Состояние для ошибок валидации
@@ -317,6 +322,11 @@ const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) => {
       retail_price: formData.retail_price,
       priceRanges: autoPriceRanges, // Автоматически создаем на основе розничной цены
       imageFiles,
+      // Преобразуем пустые строки в null для веса и габаритов
+      weight_grams: formData.weight_grams === '' ? null : (formData.weight_grams ? parseInt(String(formData.weight_grams)) : null),
+      length_cm: formData.length_cm === '' ? null : (formData.length_cm ? parseFloat(String(formData.length_cm)) : null),
+      width_cm: formData.width_cm === '' ? null : (formData.width_cm ? parseFloat(String(formData.width_cm)) : null),
+      height_cm: formData.height_cm === '' ? null : (formData.height_cm ? parseFloat(String(formData.height_cm)) : null),
     });
   };
 
@@ -479,6 +489,88 @@ const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) => {
               <p className="text-xs text-muted-foreground">
                 Артикул продавца на OZON (опционально)
               </p>
+            </div>
+          </div>
+
+          {/* Вес и габариты */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="text-lg font-semibold">Вес и габариты (для расчета доставки)</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="weight_grams" className="mb-2">Вес (граммы)</Label>
+                <Input
+                  id="weight_grams"
+                  type="number"
+                  value={formData.weight_grams === '' ? '' : formData.weight_grams}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? '' : parseInt(e.target.value);
+                    setFormData({ ...formData, weight_grams: value });
+                  }}
+                  placeholder="Например: 100"
+                  min="0"
+                  step="1"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Вес товара в граммах (для расчета стоимости доставки)
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="length_cm" className="mb-2">Длина (см)</Label>
+                <Input
+                  id="length_cm"
+                  type="number"
+                  value={formData.length_cm === '' ? '' : formData.length_cm}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? '' : parseFloat(e.target.value);
+                    setFormData({ ...formData, length_cm: value });
+                  }}
+                  placeholder="Например: 72"
+                  min="0"
+                  step="0.1"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Длина товара в сантиметрах
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="width_cm" className="mb-2">Ширина (см)</Label>
+                <Input
+                  id="width_cm"
+                  type="number"
+                  value={formData.width_cm === '' ? '' : formData.width_cm}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? '' : parseFloat(e.target.value);
+                    setFormData({ ...formData, width_cm: value });
+                  }}
+                  placeholder="Например: 72"
+                  min="0"
+                  step="0.1"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Ширина товара в сантиметрах
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="height_cm" className="mb-2">Высота (см)</Label>
+                <Input
+                  id="height_cm"
+                  type="number"
+                  value={formData.height_cm === '' ? '' : formData.height_cm}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? '' : parseFloat(e.target.value);
+                    setFormData({ ...formData, height_cm: value });
+                  }}
+                  placeholder="Например: 1"
+                  min="0"
+                  step="0.1"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Высота товара в сантиметрах
+                </p>
+              </div>
             </div>
           </div>
 

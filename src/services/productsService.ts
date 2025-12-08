@@ -42,6 +42,11 @@ export interface ProductFormData {
   lastMarketplacePrice?: number;
   lastPriceUpdateAt?: string;
   maxPriceChangePercent?: number;
+  // Поля для веса и габаритов
+  weight_grams?: number; // Вес товара в граммах
+  length_cm?: number; // Длина товара в сантиметрах
+  width_cm?: number; // Ширина товара в сантиметрах
+  height_cm?: number; // Высота товара в сантиметрах
 }
 
 export const productsService = {

@@ -22,6 +22,10 @@ export interface ProductExcelRow {
   размеры?: string; // Через точку с запятой
   баркод?: string;
   фото?: string; // URL фотографии (может быть несколько через точку с запятой)
+  вес_граммы?: number; // Вес товара в граммах
+  длина_см?: number; // Длина товара в сантиметрах
+  ширина_см?: number; // Ширина товара в сантиметрах
+  высота_см?: number; // Высота товара в сантиметрах
 }
 
 /**
@@ -63,6 +67,10 @@ export async function exportProductsToExcel(): Promise<void> {
         размеры: product.sizes && product.sizes.length > 0 ? product.sizes.join('; ') : '',
         баркод: product.importMetadata?.barcode || '',
         фото: product.images && product.images.length > 0 ? product.images.join('; ') : '',
+        вес_граммы: product.weightGrams || undefined,
+        длина_см: product.lengthCm || undefined,
+        ширина_см: product.widthCm || undefined,
+        высота_см: product.heightCm || undefined,
       };
     });
     
@@ -91,6 +99,10 @@ export async function exportProductsToExcel(): Promise<void> {
         'размеры',
         'баркод',
         'фото',
+        'вес_граммы',
+        'длина_см',
+        'ширина_см',
+        'высота_см',
       ],
     });
     
@@ -115,6 +127,10 @@ export async function exportProductsToExcel(): Promise<void> {
       { wch: 30 }, // размеры
       { wch: 15 }, // баркод
       { wch: 60 }, // фото
+      { wch: 12 }, // вес_граммы
+      { wch: 12 }, // длина_см
+      { wch: 12 }, // ширина_см
+      { wch: 12 }, // высота_см
     ];
     worksheet['!cols'] = colWidths;
     
@@ -231,6 +247,10 @@ export async function importProductsFromExcel(
           размеры: getColIndex('размеры'),
           баркод: getColIndex('баркод'),
           фото: getColIndex('фото'),
+          вес_граммы: getColIndex('вес_граммы'),
+          длина_см: getColIndex('длина_см'),
+          ширина_см: getColIndex('ширина_см'),
+          высота_см: getColIndex('высота_см'),
         };
         
         // Проверяем обязательные колонки
@@ -307,6 +327,10 @@ export async function importProductsFromExcel(
             const sizesStr = getValue(colIndexes.размеры);
             const barcode = getValue(colIndexes.баркод);
             const фотоStr = getValue(colIndexes.фото);
+            const weightGrams = getNumber(colIndexes.вес_граммы);
+            const lengthCm = getNumber(colIndexes.длина_см);
+            const widthCm = getNumber(colIndexes.ширина_см);
+            const heightCm = getNumber(colIndexes.высота_см);
             
             const colors = colorsStr ? colorsStr.split(';').map(c => c.trim()).filter(Boolean) : [];
             const sizes = sizesStr ? sizesStr.split(';').map(s => s.trim()).filter(Boolean) : [];
@@ -354,6 +378,11 @@ export async function importProductsFromExcel(
               article: артикул && артикул.trim() ? артикул.trim() : undefined,
               // wb_nm_id = то же самое, что и sku (nmId)
               wbNmId: wbNmId,
+              // Поля для веса и габаритов
+              weight_grams: weightGrams ? Math.floor(weightGrams) : undefined,
+              length_cm: lengthCm || undefined,
+              width_cm: widthCm || undefined,
+              height_cm: heightCm || undefined,
             };
             
             console.log(`Товар "${name}": sku="${sku}", article="${productFormData.article || 'не указан'}", wbNmId="${wbNmId}"`);

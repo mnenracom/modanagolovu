@@ -61,6 +61,11 @@ export interface Product {
   maxPriceChangePercent?: number; // Максимальный процент изменения цены за раз (по умолчанию 25%)
   showInNewProducts?: boolean; // Показывать в секции новинок
   showInBestsellers?: boolean; // Показывать в секции хитов продаж
+  // Поля для веса и габаритов
+  weightGrams?: number; // Вес товара в граммах
+  lengthCm?: number; // Длина товара в сантиметрах
+  widthCm?: number; // Ширина товара в сантиметрах
+  heightCm?: number; // Высота товара в сантиметрах
 }
 
 export interface CartItem {

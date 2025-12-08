@@ -724,6 +724,25 @@ const ProductDetail = () => {
                           <span className="font-medium text-right">{product.colors.join(', ')}</span>
                         </div>
                       )}
+                      {(product.weightGrams || product.lengthCm || product.widthCm || product.heightCm) && (
+                        <div className="pt-3 border-t">
+                          <div className="text-sm font-semibold mb-2 text-muted-foreground">Вес и габариты</div>
+                          {product.weightGrams && (
+                            <div className="flex justify-between mb-1">
+                              <span className="text-muted-foreground">Вес</span>
+                              <span className="font-medium text-right">{product.weightGrams} г</span>
+                            </div>
+                          )}
+                          {(product.lengthCm || product.widthCm || product.heightCm) && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Габариты</span>
+                              <span className="font-medium text-right">
+                                {product.lengthCm ? `${product.lengthCm}` : '?'} × {product.widthCm ? `${product.widthCm}` : '?'} × {product.heightCm ? `${product.heightCm}` : '?'} см
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

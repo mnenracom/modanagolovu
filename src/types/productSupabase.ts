@@ -52,6 +52,11 @@ export interface ProductSupabase {
   last_marketplace_price?: number | null; // Последняя известная цена на маркетплейсе
   last_price_update_at?: string | null; // Дата последнего изменения цены
   max_price_change_percent?: number | null; // Максимальный процент изменения цены за раз (по умолчанию 25%)
+  // Поля для веса и габаритов
+  weight_grams?: number | null; // Вес товара в граммах
+  length_cm?: number | null; // Длина товара в сантиметрах
+  width_cm?: number | null; // Ширина товара в сантиметрах
+  height_cm?: number | null; // Высота товара в сантиметрах
   created_at?: string;
   updated_at?: string | null;
 }
@@ -153,6 +158,11 @@ export const transformProductFromSupabase = (product: ProductSupabase) => {
       lastMarketplacePrice: product.last_marketplace_price ?? undefined,
       lastPriceUpdateAt: product.last_price_update_at ?? undefined,
       maxPriceChangePercent: product.max_price_change_percent ?? 25.00,
+      // Поля для веса и габаритов
+      weightGrams: product.weight_grams ?? undefined,
+      lengthCm: product.length_cm ?? undefined,
+      widthCm: product.width_cm ?? undefined,
+      heightCm: product.height_cm ?? undefined,
     };
   } catch (error) {
     console.error('Ошибка преобразования товара:', error, product);
@@ -223,6 +233,11 @@ export const transformProductToSupabase = (product: any) => {
     last_marketplace_price: product.lastMarketplacePrice ?? null,
     last_price_update_at: product.lastPriceUpdateAt ?? null,
     max_price_change_percent: product.maxPriceChangePercent ?? 25.00,
+    // Поля для веса и габаритов
+    weight_grams: product.weightGrams ?? product.weight_grams ?? null,
+    length_cm: product.lengthCm ?? product.length_cm ?? null,
+    width_cm: product.widthCm ?? product.width_cm ?? null,
+    height_cm: product.heightCm ?? product.height_cm ?? null,
   };
 };
 
