@@ -124,28 +124,26 @@ export const Header = () => {
       activeTheme === 'spring' ? 'spring-shadow' : 
       ''
     }`}>
-      {/* Праздничный акцент на header - кастомная мишура */}
+      {/* Праздничный акцент на header - кастомная мишура, свисающая вниз с центра */}
       {activeTheme === 'newyear' && (
-        <>
-          {/* Кастомное изображение мишуры (если загружено) */}
-          <div 
-            className="absolute top-0 left-0 right-0 h-12 sm:h-16 pointer-events-none z-10"
-            style={{
-              backgroundImage: 'url(/tinsel-header.png)',
-              backgroundSize: 'auto 100%',
-              backgroundRepeat: 'repeat-x',
-              backgroundPosition: 'top center',
-              opacity: 0.9,
-            }}
-          />
-          {/* Fallback на CSS гирлянду если изображение не загружено */}
-          <div className="absolute top-0 left-0 right-0 h-1 new-year-garland opacity-60" />
-        </>
+        <div 
+          className="absolute top-0 left-0 right-0 h-20 sm:h-24 pointer-events-none z-10"
+          style={{
+            backgroundImage: 'url(/tinsel-header.png)',
+            backgroundSize: 'auto 100%',
+            backgroundRepeat: 'repeat-x',
+            backgroundPosition: 'center top',
+            opacity: 0.9,
+            // Маска для создания эффекта свисания вниз с центра
+            maskImage: 'radial-gradient(ellipse 60% 100% at 50% 0%, black 40%, transparent 70%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 60% 100% at 50% 0%, black 40%, transparent 70%)',
+          }}
+        />
       )}
       {activeTheme === 'spring' && (
         <div className="absolute top-0 left-0 right-0 h-1 spring-garland opacity-60" />
       )}
-      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-5">
         {/* Мобильная версия: всё в одну строку */}
         <div className="md:hidden flex items-center justify-between gap-2">
           {/* Мобильное меню слева */}
