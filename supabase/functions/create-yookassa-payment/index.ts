@@ -117,74 +117,18 @@ serve(async (req) => {
 
     console.log('📦 Тело запроса:', JSON.stringify(paymentRequest, null, 2))
 
-    // Пропускаем тестовый запрос - он может не существовать в API ЮКассы
-    // Сразу переходим к созданию платежа
+    // Отправляем запрос к API ЮКассы без таймаута
+    // Как было в рабочей версии
+    console.log('🚀 Отправка запроса к API ЮКассы...')
+    console.log('📡 URL:', apiUrl)
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(paymentRequest),
+    })
 
-    // Таймаут 15 секунд - достаточно для API ЮКассы
-    // Если запрос не проходит за 15 секунд, скорее всего проблема с ключами или сетью
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 секунд
-
-    console.log('⏱️ Таймаут установлен: 15 секунд')
-    const requestStartTime = Date.now()
-
-    let response: Response
-    try {
-      console.log('🚀 Отправка запроса к API ЮКассы...')
-      console.log('📡 URL:', apiUrl)
-      console.log('🔑 Basic Auth: shopId=' + shopId + ', secretKeyLength=' + secretKey.length)
-      console.log('📋 Метод: POST')
-      console.log('📦 Размер тела запроса:', JSON.stringify(paymentRequest).length, 'байт')
-      
-      // Отправляем запрос к API ЮКассы
-      // Используем минимальные настройки для максимальной совместимости
-      response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(paymentRequest),
-        signal: controller.signal,
-      })
-
-      const requestDuration = Date.now() - requestStartTime
-      console.log(`✅ Получен ответ от API ЮКассы за ${requestDuration}ms, статус: ${response.status}`)
-      clearTimeout(timeoutId) // Очищаем таймаут при успешном ответе
-    } catch (fetchError: any) {
-      clearTimeout(timeoutId) // Очищаем таймаут при ошибке
-      
-      // Обработка ошибки таймаута
-      if (fetchError.name === 'AbortError' || fetchError.message?.includes('aborted')) {
-        const requestDuration = Date.now() - requestStartTime
-        console.error('⏱️ Таймаут запроса к API ЮКассы (30 секунд)')
-        console.error('⏱️ Время ожидания:', requestDuration, 'ms')
-        console.error('🔍 Диагностика:')
-        console.error('  - Shop ID:', shopId)
-        console.error('  - Secret Key длина:', secretKey.length)
-        console.error('  - Secret Key начинается с:', secretKey.substring(0, 15))
-        console.error('  - API URL:', apiUrl)
-        console.error('  - Это может означать:')
-        console.error('    1. Неверный Secret Key (сервер не отвечает)')
-        console.error('    2. Проблемы с сетью между Supabase и ЮКассой')
-        console.error('    3. API ЮКассы перегружен')
-        
-        // Возвращаем 200 статус, но с информацией об ошибке в теле
-        // Это нужно, чтобы Supabase SDK передал тело ответа в data
-        return new Response(
-          JSON.stringify({ 
-            error: 'Таймаут запроса к API ЮКассы. Проверьте правильность Shop ID и Secret Key.',
-            type: 'TIMEOUT',
-            details: `Запрос к API ЮКассы превысил 30 секунд. Время ожидания: ${requestDuration}ms`,
-            suggestion: 'Возможные причины: 1) Неверный Secret Key (проверьте в личном кабинете ЮКассы), 2) Проблемы с сетью, 3) Аккаунт ЮКассы не активирован. Проверьте ключи в админ-панели и убедитесь, что используете правильный Secret Key (начинается с live_ для продакшн или test_ для тестов)'
-          }),
-          { 
-            status: 200, // Возвращаем 200, чтобы Supabase передал тело ответа
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        )
-      }
-      
-      // Пробрасываем другие ошибки в основной catch блок
-      throw fetchError
-    }
+    console.log(`✅ Получен ответ от API ЮКассы, статус: ${response.status}`)
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
