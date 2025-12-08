@@ -51,9 +51,13 @@ export const yookassaService = {
     try {
       // Используем тестовые или продакшн ключи
       const shopId = gateway.shopId || '';
-      const secretKey = gateway.testMode 
-        ? (gateway.testSecretKey || gateway.secretKey || '')
-        : (gateway.secretKey || '');
+      // Точная логика выбора ключа: тестовый ключ только из testSecretKey, боевой — из secretKey
+      let secretKey = '';
+      if (gateway.testMode) {
+        secretKey = gateway.testSecretKey || '';
+      } else {
+        secretKey = gateway.secretKey || '';
+      }
 
       if (!shopId || !secretKey) {
         throw new Error('Не настроены ключи ЮКассы. Проверьте настройки в админ-панели.');
@@ -68,7 +72,7 @@ export const yookassaService = {
         amount,
         orderId,
         testMode: gateway.testMode || false,
-        useWidget: true
+        useWidget
       });
 
       let response;
@@ -83,7 +87,7 @@ export const yookassaService = {
             description,
             returnUrl,
             testMode: gateway.testMode || false,
-            useWidget: true, // Используем виджет вместо редиректа
+            useWidget,
           },
         });
       } catch (invokeError: any) {
