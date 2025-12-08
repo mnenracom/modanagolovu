@@ -61,145 +61,49 @@ serve(async (req) => {
 
     // Создаем платеж через API ЮКассы согласно документации
     // Документация: https://yookassa.ru/developers/using-api/interaction-format
-    // Для виджета используем тип "embedded", для редиректа - "redirect"
-    
     const paymentRequest = {
       amount: {
         value: amount.toFixed(2),
         currency: 'RUB',
       },
       confirmation: {
-        type: useWidget ? 'embedded' : 'redirect', // embedded для виджета, redirect для редиректа
-        return_url: returnUrl, // Нужен даже для embedded
+        type: useWidget ? 'embedded' : 'redirect',
+        return_url: returnUrl,
       },
       description: description || `Заказ №${orderNumber || orderId}`,
       capture: true, // Автоматическое подтверждение платежа
     }
 
-    // API endpoint согласно документации: https://api.yookassa.ru/v3/
-    // Для тестового режима используем тот же endpoint, но с тестовыми ключами
+    // Используем правильный URL API (продакшн или тестовый)
     const apiUrl = 'https://api.yookassa.ru/v3/payments'
-    
-    // Логируем режим работы
-    console.log('🔧 Режим работы:', testMode ? 'ТЕСТОВЫЙ' : 'ПРОДАКШН')
 
-    // HTTP Basic Auth согласно документации: -u <Идентификатор магазина>:<Секретный ключ>
-    // В заголовке это: Authorization: Basic base64(shopId:secretKey)
+    // Формируем Basic Auth токен
     const authToken = btoa(`${shopId}:${secretKey}`)
 
-    // Логирование перед запросом (без чувствительных данных)
-    console.log('📤 Подготовка запроса к API ЮКассы:', {
-      apiUrl: apiUrl,
-      shopId: shopId,
-      shopIdLength: shopId.length,
-      secretKeyLength: secretKey.length,
-      secretKeyPrefix: secretKey.substring(0, 10) + '...',
-      authTokenLength: authToken.length,
-      amount: amount,
-      orderId: orderId,
-      testMode: testMode
-    })
-
-    // Формируем заголовки согласно документации
+    // Формируем заголовки с Basic Auth
     const headers = {
       'Content-Type': 'application/json',
-      'Idempotence-Key': `${orderId}-${Date.now()}`, // Для обеспечения идемпотентности
-      'Authorization': `Basic ${authToken}`, // HTTP Basic Auth
-      'User-Agent': 'ModnaGolovu/1.0', // Добавляем User-Agent для лучшей совместимости
+      'Idempotence-Key': `${orderId}-${Date.now()}`,
+      'Authorization': `Basic ${authToken}`,
     }
 
-    console.log('📋 Заголовки запроса:', {
-      'Content-Type': headers['Content-Type'],
-      'Idempotence-Key': headers['Idempotence-Key'],
-      'Authorization': `Basic ${authToken.substring(0, 20)}...`,
-      'User-Agent': headers['User-Agent']
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(paymentRequest),
     })
-
-    console.log('📦 Тело запроса:', JSON.stringify(paymentRequest, null, 2))
-
-    // Отправляем запрос к API ЮКассы без таймаута
-    // Как было в рабочей версии
-    console.log('🚀 Отправка запроса к API ЮКассы...')
-    console.log('📡 URL:', apiUrl)
-    
-    // Пробуем отправить запрос с retry логикой для обработки TLS ошибок
-    let response: Response
-    let lastError: any = null
-    const maxRetries = 3
-    
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        if (attempt > 1) {
-          console.log(`🔄 Повторная попытка ${attempt}/${maxRetries}...`)
-          // Небольшая задержка перед повтором
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
-        }
-        
-        response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(paymentRequest),
-        })
-        
-        console.log(`✅ Получен ответ от API ЮКассы, статус: ${response.status}`)
-        break // Успешно, выходим из цикла
-      } catch (fetchError: any) {
-        lastError = fetchError
-        
-        // Если это TLS ошибка, пробуем еще раз
-        if (fetchError.message && (
-          fetchError.message.includes('TLS') ||
-          fetchError.message.includes('peer closed connection') ||
-          fetchError.message.includes('close_notify')
-        )) {
-          console.error(`⚠️ TLS ошибка на попытке ${attempt}/${maxRetries}:`, fetchError.message)
-          if (attempt < maxRetries) {
-            continue // Пробуем еще раз
-          }
-        }
-        
-        // Если это не TLS ошибка или это последняя попытка, пробрасываем ошибку
-        throw fetchError
-      }
-    }
-    
-    // Если все попытки не удались
-    if (!response!) {
-      throw lastError || new Error('Не удалось получить ответ от API ЮКассы после всех попыток')
-    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       
-      // ДИАГНОСТИКА: Вывод детальной ошибки от ЮКассы в логи Supabase
-      console.error('❌ Ошибка API ЮКассы:', {
-        status: response.status,
-        statusText: response.statusText,
-        errorData: errorData,
-        orderId: orderId,
-        shopId: shopId,
-        testMode: testMode
-      })
-      
-      // Дополнительная информация для диагностики 401 ошибки
-      if (response.status === 401) {
-        console.error('⚠️ 401 Unauthorized - Проверьте правильность Shop ID и Secret Key')
-        console.error('Shop ID тип:', typeof shopId, 'значение:', shopId)
-        console.error('Secret Key длина:', secretKey ? secretKey.length : 0, 'начинается с:', secretKey ? secretKey.substring(0, 10) + '...' : 'отсутствует')
-      }
-      
-      // Возвращаем 200 статус, но с информацией об ошибке в теле
-      // Это нужно, чтобы Supabase SDK передал тело ответа в data
       return new Response(
         JSON.stringify({ 
           error: errorData.description || `Ошибка создания платежа: ${response.status}`,
           status: response.status,
-          statusText: response.statusText,
-          details: errorData,
-          type: 'YOOKASSA_API_ERROR'
+          details: errorData
         }),
         { 
-          status: 200, // Возвращаем 200, чтобы Supabase передал тело ответа
+          status: response.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
@@ -233,13 +137,9 @@ serve(async (req) => {
       // Редирект (старый способ)
       if (!paymentData.confirmation?.confirmation_url) {
         return new Response(
-          JSON.stringify({ 
-            error: 'Не получен URL для оплаты от ЮКассы',
-            type: 'MISSING_URL',
-            details: 'API ЮКассы вернул платеж, но без confirmation_url для редиректа'
-          }),
+          JSON.stringify({ error: 'Не получен URL для оплаты от ЮКассы' }),
           { 
-            status: 200, // Возвращаем 200, чтобы Supabase передал тело ответа
+            status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         )
@@ -257,40 +157,15 @@ serve(async (req) => {
     }
   } catch (error: any) {
     console.error('❌ КРИТИЧЕСКАЯ ОШИБКА в функции create-yookassa-payment:', error)
-    console.error('Тип ошибки:', error.constructor?.name)
-    console.error('Сообщение:', error.message)
-    console.error('Стек ошибки:', error.stack)
-    
-    // Специальная диагностика для TLS/Network ошибок
-    if (error.message && (
-      error.message.includes('connection error') ||
-      error.message.includes('peer closed connection') ||
-      error.message.includes('TLS') ||
-      error.message.includes('network')
-    )) {
-      console.error('🔴 ОБНАРУЖЕНА TLS/Network ошибка!')
-      console.error('Это обычно означает проблему с авторизацией (неверный Secret Key)')
-      console.error('Проверьте:')
-      console.error('1. Secret Key должен начинаться с test_ или live_')
-      console.error('2. Secret Key должен быть Секретным ключом, а не Публичным')
-      console.error('3. Shop ID должен быть числом')
-      console.error('4. Ключи должны быть из правильного режима (тестовый/продакшн)')
-    }
-    
-    // Возвращаем детальную информацию об ошибке для отладки
-    // Возвращаем 200 статус, но с информацией об ошибке в теле
-    // Это нужно, чтобы Supabase SDK передал тело ответа в data
-    const errorResponse = {
-      error: error.message || 'Не удалось создать платеж',
-      type: error.constructor?.name || 'UnknownError',
-      details: error.toString(),
-      stack: process.env.DENO_ENV === 'development' ? error.stack : undefined
-    }
     
     return new Response(
-      JSON.stringify(errorResponse),
+      JSON.stringify({
+        error: error.message || 'Не удалось создать платеж',
+        type: error.constructor?.name || 'UnknownError',
+        details: error.toString()
+      }),
       { 
-        status: 200, // Возвращаем 200, чтобы Supabase передал тело ответа
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
