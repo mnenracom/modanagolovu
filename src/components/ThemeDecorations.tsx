@@ -1,6 +1,5 @@
 import { NewYearDecorations } from './NewYearDecorations';
 import { SpringDecorations } from './SpringDecorations';
-import { ChristmasTree } from './ChristmasTree';
 
 /**
  * Компонент-обертка для всех декораций тем
@@ -11,7 +10,6 @@ export const ThemeDecorations = () => {
     <>
       <NewYearDecorations />
       <SpringDecorations />
-      <ChristmasTree />
     </>
   );
 };

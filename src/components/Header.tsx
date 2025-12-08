@@ -225,7 +225,7 @@ export const Header = () => {
             <img 
               src="/logo.png" 
               alt="МОДАНАГОЛОВУ" 
-              className="h-8 sm:h-10 w-auto object-contain"
+              className="h-12 sm:h-16 w-auto object-contain"
               onError={(e) => {
                 // Fallback на SVG если PNG не найден
                 (e.target as HTMLImageElement).src = '/logo.svg';
@@ -267,7 +267,7 @@ export const Header = () => {
             <img 
               src="/logo.png" 
               alt="МОДАНАГОЛОВУ" 
-              className="h-10 md:h-12 w-auto object-contain"
+              className="h-16 md:h-20 w-auto object-contain"
               onError={(e) => {
                 // Fallback на SVG если PNG не найден
                 (e.target as HTMLImageElement).src = '/logo.svg';
