@@ -172,6 +172,7 @@ const Payment = () => {
           order.order_number || String(order.id),
           `Заказ №${order.order_number || order.id}`,
           returnUrl,
+          formData.email, // Email для чека
           true // Используем виджет
         );
 

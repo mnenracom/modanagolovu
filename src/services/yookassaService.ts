@@ -11,9 +11,10 @@ export const yookassaService = {
    * @param orderNumber Номер заказа.
    * @param description Описание платежа.
    * @param returnUrl URL, на который ЮКасса вернет пользователя.
+   * @param email Email клиента для чека.
    * @param useWidget Флаг: true для встроенного виджета (embedded), false для редиректа (redirect).
    */
-  async createPayment(gateway, amount, orderId, orderNumber, description, returnUrl, useWidget = false) {
+  async createPayment(gateway, amount, orderId, orderNumber, description, returnUrl, email, useWidget = false) {
     const shopId = gateway.shopId || ''
     
     // ИСПРАВЛЕНИЕ #1: Точный выбор Secret Key в зависимости от режима
@@ -43,7 +44,8 @@ export const yookassaService = {
         description, 
         returnUrl, 
         testMode: gateway.testMode || false, 
-        useWidget: useWidget // ИСПРАВЛЕНИЕ #2: Используем аргумент функции
+        useWidget: useWidget, // ИСПРАВЛЕНИЕ #2: Используем аргумент функции
+        email: email // Передача email для чека
       }),
     })
 

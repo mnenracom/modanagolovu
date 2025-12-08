@@ -133,7 +133,8 @@ const Checkout = () => {
             String(order.id),
             order.order_number || String(order.id),
             `Заказ №${order.order_number || order.id}`,
-            returnUrl
+            returnUrl,
+            formData.email // Email для чека
           );
 
           // Обновляем заказ с данными платежа

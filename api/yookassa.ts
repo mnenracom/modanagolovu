@@ -23,15 +23,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // 1. Извлечение данных из тела запроса
-    const { shopId, secretKey, amount, orderId, orderNumber, description, returnUrl, testMode, useWidget } = req.body;
+    const { shopId, secretKey, amount, orderId, orderNumber, description, returnUrl, testMode, useWidget, email } = req.body;
 
     // Очистка ключей от пробелов (важно для Basic Auth)
     const cleanShopId = String(shopId || '').trim();
     const cleanSecretKey = String(secretKey || '').trim();
+    const cleanEmail = String(email || '').trim();
 
-    if (!cleanShopId || !cleanSecretKey || !amount || !orderId || !returnUrl) {
+    if (!cleanShopId || !cleanSecretKey || !amount || !orderId || !returnUrl || !cleanEmail) {
       return res.status(400).json({ 
-        error: 'Недостаточно параметров для создания платежа. Проверьте Shop ID и Secret Key.' 
+        error: 'Недостаточно параметров для создания платежа. Проверьте Shop ID, Secret Key и email.' 
+      });
+    }
+
+    // Валидация email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({ 
+        error: 'Неверный формат email адреса.' 
       });
     }
 
@@ -46,7 +55,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const authToken = Buffer.from(`${cleanShopId}:${cleanSecretKey}`).toString('base64');
     const idempotenceKey = `${orderId}-${Date.now()}`;
 
-    // 3. Формирование тела запроса для ЮКассы
+    // 3. Формирование объекта чека (Receipt) с email клиента
+    const receipt = {
+      customer: {
+        email: cleanEmail,
+      },
+      items: [{
+        description: description || `Заказ №${orderNumber || orderId}`,
+        quantity: '1.00',
+        amount: {
+          value: numAmount.toFixed(2),
+          currency: 'RUB',
+        },
+        // ВАЖНО: 1 = НДС 0%. Измените на 4, 5 или 6, если у вас НДС 20%, 10% или 12%.
+        vat_code: 1,
+        payment_subject: 'commodity',
+        payment_mode: 'full_prepayment',
+      }],
+    };
+
+    // 4. Формирование тела запроса для ЮКассы
     const paymentRequest = {
       amount: {
         value: numAmount.toFixed(2),
@@ -58,9 +86,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       description: description || `Заказ №${orderNumber || orderId}`,
       capture: true,
+      receipt: receipt, // Добавление чека с email
     };
 
-    // 4. Выполнение запроса к ЮКассе через нативный https модуль (более надежный TLS)
+    // 5. Выполнение запроса к ЮКассе через нативный https модуль (более надежный TLS)
     const requestBody = JSON.stringify(paymentRequest);
     const apiUrl = new URL('https://api.yookassa.ru/v3/payments');
     
@@ -117,7 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       req.end();
     });
 
-    // 5. Обработка ответа
+    // 6. Обработка ответа
     if (!yookassaResponse.ok) {
       return res.status(200).json({
         error: yookassaResponse.data?.description || `Ошибка создания платежа: ${yookassaResponse.status}`,
@@ -130,7 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const paymentData = yookassaResponse.data;
 
-    // 6. Возврат данных клиенту
+    // 7. Возврат данных клиенту
     if (useWidget) {
       if (!paymentData.confirmation?.confirmation_token) {
         return res.status(200).json({
