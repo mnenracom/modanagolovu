@@ -149,8 +149,8 @@ export const Header = () => {
           {/* Мобильное меню слева */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="h-10 w-10">
+                <Menu className="h-6 w-6" />
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[280px] sm:w-[300px] z-[70]">
@@ -235,8 +235,8 @@ export const Header = () => {
           <div className="flex items-center space-x-2">
               {isAuthenticated && (
                 <Link to="/account?tab=wishlist">
-                  <Button variant="ghost" size="icon" className="relative">
-                    <Heart className="h-5 w-5" />
+                  <Button variant="ghost" size="icon" className="relative h-10 w-10">
+                    <Heart className="h-6 w-6" />
                     {wishlistCount > 0 && (
                       <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-accent text-accent-foreground text-xs flex items-center justify-center">
                         {wishlistCount}
@@ -247,8 +247,8 @@ export const Header = () => {
               )}
               
               <Link to="/cart">
-                <Button variant="ghost" size="icon" className="relative">
-                  <ShoppingCart className="h-5 w-5" />
+                <Button variant="ghost" size="icon" className="relative h-10 w-10">
+                  <ShoppingCart className="h-6 w-6" />
                   {cartItemsCount > 0 && (
                     <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-accent text-accent-foreground text-xs flex items-center justify-center">
                       {cartItemsCount}
@@ -281,9 +281,9 @@ export const Header = () => {
                 return (
                   <DropdownMenu key={item.name}>
                     <DropdownMenuTrigger asChild>
-                      <button className="text-foreground hover:text-primary transition-smooth font-medium flex items-center gap-1">
+                      <button className="text-foreground hover:text-primary transition-smooth font-medium text-base flex items-center gap-1.5">
                         {item.name}
-                        <ChevronDown className="h-4 w-4 flex-shrink-0" style={{ willChange: 'auto' }} />
+                        <ChevronDown className="h-5 w-5 flex-shrink-0" style={{ willChange: 'auto' }} />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56">
@@ -313,7 +313,7 @@ export const Header = () => {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className="text-foreground hover:text-primary transition-smooth font-medium"
+                  className="text-foreground hover:text-primary transition-smooth font-medium text-base"
                 >
                   {item.name}
                 </Link>
@@ -348,12 +348,12 @@ export const Header = () => {
             ) : (
               <div className="flex items-center space-x-2">
                 <Link to="/auth/login">
-                  <Button variant="ghost" className="font-medium">
+                  <Button variant="ghost" className="font-medium text-base">
                     ВХОД
                   </Button>
                 </Link>
                 <Link to="/auth/register">
-                  <Button className="font-medium">
+                  <Button className="font-medium text-base">
                     РЕГИСТРАЦИЯ
                   </Button>
                 </Link>
