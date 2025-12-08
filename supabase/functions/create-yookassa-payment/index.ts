@@ -113,6 +113,51 @@ serve(async (req) => {
 
     console.log('📦 Тело запроса:', JSON.stringify(paymentRequest, null, 2))
 
+    // Сначала делаем простой тестовый запрос для проверки подключения
+    // Используем endpoint /me для проверки авторизации (если доступен)
+    // Это поможет понять, работает ли вообще подключение к API
+    console.log('🔍 Проверка подключения к API ЮКассы...')
+    const testStartTime = Date.now()
+    
+    try {
+      // Пробуем простой GET запрос для проверки авторизации
+      // Если этот запрос тоже таймаутится, значит проблема в сети или ключах
+      const testController = new AbortController()
+      const testTimeoutId = setTimeout(() => testController.abort(), 10000) // 10 секунд для теста
+      
+      const testResponse = await fetch('https://api.yookassa.ru/v3/me', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${authToken}`,
+          'User-Agent': 'ModnaGolovu/1.0',
+        },
+        signal: testController.signal,
+      })
+      
+      clearTimeout(testTimeoutId)
+      const testDuration = Date.now() - testStartTime
+      
+      if (testResponse.ok) {
+        const testData = await testResponse.json().catch(() => ({}))
+        console.log(`✅ Тестовый запрос успешен за ${testDuration}ms:`, {
+          status: testResponse.status,
+          accountId: testData.account_id,
+          testMode: testData.test || false
+        })
+      } else {
+        console.log(`⚠️ Тестовый запрос вернул ${testResponse.status}, но соединение работает`)
+      }
+    } catch (testError: any) {
+      const testDuration = Date.now() - testStartTime
+      if (testError.name === 'AbortError') {
+        console.error(`⏱️ Тестовый запрос таймаутился за ${testDuration}ms - проблема с подключением к API ЮКассы`)
+        console.error('🔴 Это означает, что API ЮКассы недоступен или ключи неверны')
+      } else {
+        console.error(`⚠️ Тестовый запрос завершился с ошибкой за ${testDuration}ms:`, testError.message)
+      }
+      // Продолжаем с основным запросом, но знаем, что могут быть проблемы
+    }
+
     // Увеличиваем таймаут до 30 секунд для надежности
     // API ЮКассы может отвечать медленно, особенно при проблемах с сетью
     const controller = new AbortController()
