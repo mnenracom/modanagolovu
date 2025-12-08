@@ -122,13 +122,51 @@ serve(async (req) => {
     console.log('🚀 Отправка запроса к API ЮКассы...')
     console.log('📡 URL:', apiUrl)
     
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(paymentRequest),
-    })
-
-    console.log(`✅ Получен ответ от API ЮКассы, статус: ${response.status}`)
+    // Пробуем отправить запрос с retry логикой для обработки TLS ошибок
+    let response: Response
+    let lastError: any = null
+    const maxRetries = 3
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 1) {
+          console.log(`🔄 Повторная попытка ${attempt}/${maxRetries}...`)
+          // Небольшая задержка перед повтором
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+        }
+        
+        response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(paymentRequest),
+        })
+        
+        console.log(`✅ Получен ответ от API ЮКассы, статус: ${response.status}`)
+        break // Успешно, выходим из цикла
+      } catch (fetchError: any) {
+        lastError = fetchError
+        
+        // Если это TLS ошибка, пробуем еще раз
+        if (fetchError.message && (
+          fetchError.message.includes('TLS') ||
+          fetchError.message.includes('peer closed connection') ||
+          fetchError.message.includes('close_notify')
+        )) {
+          console.error(`⚠️ TLS ошибка на попытке ${attempt}/${maxRetries}:`, fetchError.message)
+          if (attempt < maxRetries) {
+            continue // Пробуем еще раз
+          }
+        }
+        
+        // Если это не TLS ошибка или это последняя попытка, пробрасываем ошибку
+        throw fetchError
+      }
+    }
+    
+    // Если все попытки не удались
+    if (!response!) {
+      throw lastError || new Error('Не удалось получить ответ от API ЮКассы после всех попыток')
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
