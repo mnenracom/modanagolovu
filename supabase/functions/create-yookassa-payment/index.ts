@@ -103,7 +103,8 @@ serve(async (req) => {
           details: errorData
         }),
         { 
-          status: response.status,
+          // Возвращаем 200, чтобы Supabase SDK не бросал FunctionsHttpError
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
@@ -117,7 +118,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ error: 'Не получен токен для виджета от ЮКассы' }),
           { 
-            status: 500,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         )
@@ -139,7 +140,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ error: 'Не получен URL для оплаты от ЮКассы' }),
           { 
-            status: 500,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         )
