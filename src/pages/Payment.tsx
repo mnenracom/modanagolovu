@@ -399,20 +399,20 @@ const Payment = () => {
                 </Card>
               ) : orderCreated && confirmationToken ? (
                 <Card className="shadow-lg border-2 border-primary">
-                  <CardHeader className="bg-primary/5">
-                    <CardTitle className="flex items-center gap-2 text-primary text-xl">
+                  <CardHeader className="bg-primary/5 pb-3">
+                    <CardTitle className="flex items-center gap-2 text-primary text-lg">
                       <CreditCard className="h-5 w-5" />
                       Оплата заказа
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground mt-2">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Заказ успешно создан. Заполните данные карты для оплаты.
                     </p>
                   </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="space-y-4">
-                      <Alert className="border-primary/20 bg-primary/5">
+                  <CardContent className="pt-3">
+                    <div className="space-y-2">
+                      <Alert className="border-primary/20 bg-primary/5 py-2">
                         <AlertCircle className="h-4 w-4 text-primary" />
-                        <AlertDescription className="text-sm">
+                        <AlertDescription className="text-xs">
                           Безопасная оплата через ЮКассу. Ваши данные защищены.
                         </AlertDescription>
                       </Alert>
