@@ -96,42 +96,10 @@ export const NewYearDecorations = () => {
       </div>
 
       {/* Оптимизированные блестящие звёздочки (меньше на мобильных) */}
-      <div className="fixed inset-0 pointer-events-none z-[66] overflow-hidden hidden sm:block">
-        {[...Array(isMobile ? 5 : 8)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute new-year-sparkle"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animation: `sparkle ${2 + Math.random() * 2}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 2}s`,
-              transform: 'translateZ(0)', // GPU acceleration
-            }}
-          >
-            <Star className="w-3 h-3 text-yellow-300 fill-yellow-300" />
-          </div>
-        ))}
-      </div>
-
+      <SparklesLayer isMobile={isMobile} type="stars" />
+      
       {/* Оптимизированные блестящие частицы */}
-      <div className="fixed inset-0 pointer-events-none z-[66] overflow-hidden">
-        {[...Array(isMobile ? 5 : 15)].map((_, i) => (
-          <div
-            key={`sparkle-${i}`}
-            className="absolute new-year-sparkle"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animation: `sparkle ${1.5 + Math.random() * 1.5}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 2}s`,
-              transform: 'translateZ(0)', // GPU acceleration
-            }}
-          >
-            <Sparkles className="w-2 h-2 text-yellow-300" />
-          </div>
-        ))}
-      </div>
+      <SparklesLayer isMobile={isMobile} type="sparkles" />
     </>
   );
 };
