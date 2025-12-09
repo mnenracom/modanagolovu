@@ -31,50 +31,38 @@ const Index = () => {
     Autoplay({ delay: 7000, stopOnInteraction: false })
   );
 
-  // Загружаем товары для секции новинок из Supabase
+  // Оптимизированная загрузка товаров - параллельно
   useEffect(() => {
-    const loadProducts = async () => {
+    const loadAllProducts = async () => {
       try {
         setLoading(true);
-        const { data } = await productsService.getForNewProducts({
-          limit: 4, // Только 4 товара для главной страницы
-        });
+        setPopularLoading(true);
         
-        // Преобразуем данные из Supabase формата
-        const transformedProducts = data.map(transformProductFromSupabase);
-        setNewProducts(transformedProducts);
+        // Загружаем оба списка параллельно для лучшей производительности
+        const [newProductsData, popularProductsData] = await Promise.all([
+          productsService.getForNewProducts({ limit: 4 }).catch(err => {
+            console.error('Ошибка загрузки новинок:', err);
+            return { data: [] };
+          }),
+          productsService.getForBestsellers({ limit: 4 }).catch(err => {
+            console.error('Ошибка загрузки хитов продаж:', err);
+            return { data: [] };
+          }),
+        ]);
+        
+        setNewProducts(newProductsData.data.map(transformProductFromSupabase));
+        setPopularProducts(popularProductsData.data.map(transformProductFromSupabase));
       } catch (error) {
         console.error('Ошибка загрузки товаров:', error);
         setNewProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProducts();
-  }, []);
-
-  // Загружаем товары для секции хитов продаж
-  useEffect(() => {
-    const loadPopularProducts = async () => {
-      try {
-        setPopularLoading(true);
-        const { data } = await productsService.getForBestsellers({
-          limit: 4, // Только 4 товара для главной страницы
-        });
-        
-        // Преобразуем данные из Supabase формата
-        const transformedProducts = data.map(transformProductFromSupabase);
-        setPopularProducts(transformedProducts);
-      } catch (error) {
-        console.error('Ошибка загрузки товаров для хитов продаж:', error);
         setPopularProducts([]);
       } finally {
+        setLoading(false);
         setPopularLoading(false);
       }
     };
 
-    loadPopularProducts();
+    loadAllProducts();
   }, []);
 
 
