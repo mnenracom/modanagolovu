@@ -15,4 +15,26 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Оптимизации для production
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: mode === 'production', // Удаляем console.log в production
+        drop_debugger: true,
+      },
+    },
+    rollupOptions: {
+      output: {
+        // Code splitting для лучшей производительности
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
+          'utils-vendor': ['date-fns', 'zod', 'clsx', 'tailwind-merge'],
+        },
+      },
+    },
+    // Увеличиваем лимит предупреждений для больших чанков
+    chunkSizeWarningLimit: 1000,
+  },
 }));

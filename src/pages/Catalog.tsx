@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ProductCard } from '@/components/ProductCard';
@@ -25,6 +25,27 @@ const Catalog = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
+
+  // Мемоизируем обработчики для избежания лишних ререндеров
+  const handleCategoryChange = useCallback((category: string) => {
+    setSelectedCategory(category);
+  }, []);
+
+  const handleMaterialToggle = useCallback((material: string) => {
+    setSelectedMaterials(prev => 
+      prev.includes(material) 
+        ? prev.filter(m => m !== material)
+        : [...prev, material]
+    );
+  }, []);
+
+  const handleColorToggle = useCallback((color: string) => {
+    setSelectedColors(prev => 
+      prev.includes(color) 
+        ? prev.filter(c => c !== color)
+        : [...prev, color]
+    );
+  }, []);
 
   // Загружаем товары из Supabase
   useEffect(() => {
@@ -68,31 +89,40 @@ const Catalog = () => {
     loadCategories();
   }, []);
 
-  // Генерируем списки цветов и материалов из загруженных товаров
-  const allColors = Array.from(new Set(products.flatMap((p) => p.colors || [])));
-  const allMaterials = Array.from(
-    new Set(
-      products
-        .flatMap((p) => (p.material || '').split(',').map((m) => m.trim()))
-        .filter((m) => m.length > 0)
-    )
+  // Мемоизируем списки цветов и материалов для избежания пересчета
+  const allColors = useMemo(() => 
+    Array.from(new Set(products.flatMap((p) => p.colors || []))),
+    [products]
+  );
+  
+  const allMaterials = useMemo(() => 
+    Array.from(
+      new Set(
+        products
+          .flatMap((p) => (p.material || '').split(',').map((m) => m.trim()))
+          .filter((m) => m.length > 0)
+      )
+    ),
+    [products]
   );
 
-  const filteredProducts = products.filter((product) => {
-    // Сопоставляем категорию товара со slug категорий из Supabase
-    const categoryMatch = selectedCategory === 'all' || product.category === selectedCategory;
-    const colorMatch =
-      selectedColors.length === 0 || 
-      (product.colors && selectedColors.some((c) => product.colors.includes(c)));
-    const materialMatch =
-      selectedMaterials.length === 0 ||
-      (product.material &&
-        product.material
-          .split(',')
-          .map((m) => m.trim())
-          .some((m) => selectedMaterials.includes(m)));
-    return categoryMatch && colorMatch && materialMatch;
-  });
+  // Мемоизируем фильтрацию товаров
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const categoryMatch = selectedCategory === 'all' || product.category === selectedCategory;
+      const colorMatch =
+        selectedColors.length === 0 || 
+        (product.colors && selectedColors.some((c) => product.colors.includes(c)));
+      const materialMatch =
+        selectedMaterials.length === 0 ||
+        (product.material &&
+          product.material
+            .split(',')
+            .map((m) => m.trim())
+            .some((m) => selectedMaterials.includes(m)));
+      return categoryMatch && colorMatch && materialMatch;
+    });
+  }, [products, selectedCategory, selectedColors, selectedMaterials]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -111,7 +141,7 @@ const Catalog = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">Категория</label>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <Select value={selectedCategory} onValueChange={handleCategoryChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Выберите категорию" />
                   </SelectTrigger>

@@ -23,36 +23,40 @@ export const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
   // Получаем розничную цену
   const retailPrice = product.retailPrice ?? product.price ?? 0;
   
-  const materialTags = (product.material || '')
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0);
+  // Мемоизируем materialTags для избежания пересчета
+  const materialTags = useMemo(() => 
+    (product.material || '')
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0),
+    [product.material]
+  );
 
   // Проверяем, есть ли товар в избранном
   useEffect(() => {
     setIsFavorite(isInWishlist(product.id));
   }, [product.id, isInWishlist]);
 
-  const handleCardClick = () => {
+  const handleCardClick = useCallback(() => {
     navigate(`/product/${product.id}`);
-  };
+  }, [navigate, product.id]);
 
-  const handleAddToCartClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Предотвращаем переход на страницу товара
+  const handleAddToCartClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
     if (onAddToCart) {
       onAddToCart(product);
     }
-  };
+  }, [onAddToCart, product]);
 
-  const handleWishlistClick = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Предотвращаем переход на страницу товара
+  const handleWishlistClick = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (isToggling) return;
     
     setIsToggling(true);
     const newState = await toggleWishlist(product);
     setIsFavorite(newState);
     setIsToggling(false);
-  };
+  }, [isToggling, toggleWishlist, product]);
 
   const getCardBorderClass = () => {
     if (activeTheme === 'newyear') return 'new-year-card-border';
@@ -152,4 +156,16 @@ export const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
       </CardFooter>
     </Card>
   );
-};
+}, (prevProps, nextProps) => {
+  // Кастомная функция сравнения для React.memo
+  return (
+    prevProps.product.id === nextProps.product.id &&
+    prevProps.product.price === nextProps.product.price &&
+    prevProps.product.retailPrice === nextProps.product.retailPrice &&
+    prevProps.product.inStock === nextProps.product.inStock &&
+    prevProps.product.image === nextProps.product.image &&
+    prevProps.product.name === nextProps.product.name
+  );
+});
+
+ProductCard.displayName = 'ProductCard';
