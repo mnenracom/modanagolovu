@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Heart } from 'lucide-react';
 import { useWishlist } from '@/hooks/useWishlist';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useMemo, useCallback } from 'react';
 import { useTheme } from '@/hooks/useTheme';
 
 interface ProductCardProps {
@@ -13,7 +13,7 @@ interface ProductCardProps {
   onAddToCart?: (product: Product) => void;
 }
 
-export const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
+const ProductCardComponent = ({ product, onAddToCart }: ProductCardProps) => {
   const navigate = useNavigate();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { activeTheme } = useTheme();
@@ -156,8 +156,10 @@ export const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
       </CardFooter>
     </Card>
   );
-}, (prevProps, nextProps) => {
-  // Кастомная функция сравнения для React.memo
+};
+
+// Кастомная функция сравнения для React.memo
+const areEqual = (prevProps: ProductCardProps, nextProps: ProductCardProps) => {
   return (
     prevProps.product.id === nextProps.product.id &&
     prevProps.product.price === nextProps.product.price &&
@@ -166,6 +168,7 @@ export const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
     prevProps.product.image === nextProps.product.image &&
     prevProps.product.name === nextProps.product.name
   );
-});
+};
 
+export const ProductCard = memo(ProductCardComponent, areEqual);
 ProductCard.displayName = 'ProductCard';
