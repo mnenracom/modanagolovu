@@ -128,8 +128,10 @@ const ProductDetail = () => {
       }
     };
 
+    // Добавляем небольшую задержку для неблокирующей загрузки
     if (product) {
-      loadSimilarProducts();
+      const timer = setTimeout(loadSimilarProducts, 100);
+      return () => clearTimeout(timer);
     }
   }, [product?.id, product?.category]);
 

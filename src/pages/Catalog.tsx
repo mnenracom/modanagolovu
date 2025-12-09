@@ -174,11 +174,7 @@ const Catalog = () => {
                           {allMaterials.map((mat) => {
                             const checked = selectedMaterials.includes(mat);
                             return (
-                              <CommandItem key={mat} onSelect={() => {
-                                setSelectedMaterials((prev) =>
-                                  prev.includes(mat) ? prev.filter((m) => m !== mat) : [...prev, mat]
-                                );
-                              }}>
+                              <CommandItem key={mat} onSelect={() => handleMaterialToggle(mat)}>
                                 <Checkbox checked={checked} className="mr-2" />
                                 {mat}
                               </CommandItem>
@@ -209,11 +205,7 @@ const Catalog = () => {
                           {allColors.map((color) => {
                             const checked = selectedColors.includes(color);
                             return (
-                              <CommandItem key={color} onSelect={() => {
-                                setSelectedColors((prev) =>
-                                  prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color]
-                                );
-                              }}>
+                              <CommandItem key={color} onSelect={() => handleColorToggle(color)}>
                                 <Checkbox checked={checked} className="mr-2" />
                                 {color}
                               </CommandItem>
@@ -230,7 +222,7 @@ const Catalog = () => {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setSelectedCategory('all');
+                    handleCategoryChange('all');
                     setSelectedMaterials([]);
                     setSelectedColors([]);
                   }}
