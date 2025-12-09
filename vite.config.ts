@@ -17,13 +17,8 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     // Оптимизации для production
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: mode === 'production', // Удаляем console.log в production
-        drop_debugger: true,
-      },
-    },
+    // Используем esbuild (встроен в Vite) вместо terser для лучшей производительности
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         // Code splitting для лучшей производительности
