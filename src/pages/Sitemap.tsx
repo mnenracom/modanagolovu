@@ -50,20 +50,20 @@ const Sitemap = () => {
           console.error('Ошибка загрузки товаров для sitemap:', error);
         }
 
-        // Добавляем статьи блога (раскомментируйте если есть сервис)
-        // try {
-        //   const articles = await articlesService.getAll({ limit: 1000 });
-        //   articles.forEach(article => {
-        //     urls.push({
-        //       loc: `/blog/${article.slug}`,
-        //       changefreq: 'monthly',
-        //       priority: 0.6,
-        //       lastmod: article.updatedAt || article.createdAt || now,
-        //     });
-        //   });
-        // } catch (error) {
-        //   console.error('Ошибка загрузки статей для sitemap:', error);
-        // }
+        // Добавляем статьи блога (только опубликованные)
+        try {
+          const articles = await articlesService.getAll({ status: 'published', limit: 1000 });
+          articles.forEach(article => {
+            urls.push({
+              loc: `/blog/${article.slug}`,
+              changefreq: 'monthly',
+              priority: 0.6,
+              lastmod: article.updatedAt || article.createdAt || now,
+            });
+          });
+        } catch (error) {
+          console.error('Ошибка загрузки статей для sitemap:', error);
+        }
 
         // Генерируем XML
         const sitemapXml = generateSitemap(urls);
