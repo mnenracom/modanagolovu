@@ -55,6 +55,7 @@ import Register from "./pages/auth/Register";
 import AuthCallback from "./pages/auth/AuthCallback";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
+import Sitemap from "./pages/Sitemap";
 import { ErrorBoundary } from "./components/admin/ErrorBoundary";
 import { Analytics } from "./components/Analytics";
 import { ThemeDecorations } from "./components/ThemeDecorations";
