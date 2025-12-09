@@ -52,7 +52,7 @@ const Sitemap = () => {
 
         // Добавляем статьи блога (только опубликованные)
         try {
-          const articles = await articlesService.getAll({ status: 'published', limit: 1000 });
+          const articles = await articlesService.getPublished({ limit: 1000 });
           articles.forEach(article => {
             urls.push({
               loc: `/blog/${article.slug}`,
