@@ -16,6 +16,8 @@ import { Product } from '@/types/product';
 import { Banner } from '@/types/bannerSupabase';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
+import { SEO } from '@/components/SEO';
+import { StructuredData } from '@/components/StructuredData';
 
 const Index = () => {
   const { addToCart } = useCart();

@@ -1,14 +1,26 @@
+# robots.txt для modanagolovu.ru
+
+# Разрешаем всем поисковым роботам индексировать сайт
+User-agent: *
+Allow: /
+
+# Запрещаем индексировать админ-панель и служебные страницы
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /api/
+
+# Указываем расположение sitemap
+Sitemap: https://modanagolovu.ru/sitemap.xml
+
+# Специальные настройки для основных поисковых систем
 User-agent: Googlebot
 Allow: /
+Crawl-delay: 1
+
+User-agent: Yandex
+Allow: /
+Crawl-delay: 1
 
 User-agent: Bingbot
 Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
-User-agent: *
-Allow: /
+Crawl-delay: 1
